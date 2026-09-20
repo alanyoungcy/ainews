@@ -50,17 +50,20 @@ jobs:
         id: snapshot
         shell: bash
         run: |
-          latest=$(find .trendradar/output/news -maxdepth 1 -type f -name '*.db' -print | sort | tail -n 1)
-          if [ -z "$latest" ]; then
-            echo "No TrendRadar SQLite snapshot was generated" >&2
+          latest_news=$(find .trendradar/output/news -maxdepth 1 -type f -name '*.db' -print | sort | tail -n 1)
+          latest_rss=$(find .trendradar/output/rss -maxdepth 1 -type f -name '*.db' -print | sort | tail -n 1)
+          if [ -z "$latest_news" ]; then
+            echo "No TrendRadar news SQLite snapshot was generated" >&2
             exit 1
           fi
-          echo "path=$latest" >> "$GITHUB_OUTPUT"
+          echo "news_path=$latest_news" >> "$GITHUB_OUTPUT"
+          echo "rss_path=$latest_rss" >> "$GITHUB_OUTPUT"
 
       - name: Normalize TrendRadar snapshot
         run: |
           python scripts/sync_trendradar.py \
-            --db "${{ steps.snapshot.outputs.path }}" \
+            --db "${{ steps.snapshot.outputs.news_path }}" \
+            --rss-db "${{ steps.snapshot.outputs.rss_path }}" \
             --output data/trendradar/latest.json
 
       - name: Commit refreshed feed
