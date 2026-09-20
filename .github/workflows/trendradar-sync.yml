@@ -1,0 +1,70 @@
+name: Sync TrendRadar into AI News Workspace
+
+on:
+  schedule:
+    - cron: "15 1 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: trendradar-sync
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout AI News workspace
+        uses: actions/checkout@v4
+
+      - name: Checkout TrendRadar
+        uses: actions/checkout@v4
+        with:
+          repository: alanyoungcy/trendradar-capco
+          path: .trendradar
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install TrendRadar dependencies
+        working-directory: .trendradar
+        run: uv sync --frozen --no-dev
+
+      - name: Run TrendRadar crawler
+        working-directory: .trendradar
+        env:
+          GITHUB_ACTIONS: true
+        run: uv run python -m trendradar
+
+      - name: Locate latest TrendRadar snapshot
+        id: snapshot
+        shell: bash
+        run: |
+          latest=$(find .trendradar/output/news -maxdepth 1 -type f -name '*.db' -print | sort | tail -n 1)
+          if [ -z "$latest" ]; then
+            echo "No TrendRadar SQLite snapshot was generated" >&2
+            exit 1
+          fi
+          echo "path=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Normalize TrendRadar snapshot
+        run: |
+          python scripts/sync_trendradar.py \
+            --db "${{ steps.snapshot.outputs.path }}" \
+            --output data/trendradar/latest.json
+
+      - name: Commit refreshed feed
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "chore: sync TrendRadar news feed"
+          file_pattern: data/trendradar/latest.json
