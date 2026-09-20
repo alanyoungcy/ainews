@@ -26,6 +26,7 @@ export async function generateInfographicArtwork(brief?: WeeklyBrief | null) {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model, prompt, size: "1536x1024", quality: "high", n: 1 }),
+    signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) throw new Error(`Image provider returned ${response.status}`);
   const payload = await response.json() as { data?: Array<{ url?: string; b64_json?: string }> };

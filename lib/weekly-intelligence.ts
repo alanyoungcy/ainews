@@ -31,6 +31,7 @@ export type WeeklyBriefResult = {
     groundedItems: number;
     groundedSources: number;
     generatedAt: string;
+    providerError?: string;
   };
 };
 
@@ -142,6 +143,7 @@ export async function generateWeeklyBrief(feed: TrendRadarFeed): Promise<WeeklyB
           { role: "user", content: JSON.stringify(prompt) },
         ],
       }),
+      signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) throw new Error(`AI provider returned ${response.status}`);
     const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
@@ -152,7 +154,14 @@ export async function generateWeeklyBrief(feed: TrendRadarFeed): Promise<WeeklyB
       brief,
       meta: { provider: "openai-compatible", model, groundedItems: candidates.length, groundedSources: new Set(candidates.map((item) => item.sourceId)).size, generatedAt: new Date().toISOString() },
     };
-  } catch {
-    return buildFallbackBrief(feed);
+  } catch (error) {
+    const fallback = buildFallbackBrief(feed);
+    return {
+      ...fallback,
+      meta: {
+        ...fallback.meta,
+        providerError: error instanceof Error ? error.message.slice(0, 160) : "Provider request failed",
+      },
+    };
   }
 }
