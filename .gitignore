@@ -8,3 +8,4 @@ node_modules/
 coverage/
 data/trendradar/weekly-brief.json
 data/trendradar/infographic-memory.json
+data/trendradar/jev-triage.json

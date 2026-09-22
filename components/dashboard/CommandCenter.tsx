@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import type { TrendRadarFeed, TrendRadarItem } from "@/lib/trendradar";
 import { selectWeeklyCandidates, type WeeklyBriefResult } from "@/lib/weekly-intelligence";
+import type { JevTriageScore } from "@/lib/jev-triage.server";
 
 type QueueStory = {
   id: string;
@@ -19,6 +20,7 @@ type QueueStory = {
   published: string;
   implication: string;
   kind: "feed" | "ai";
+  jevScore?: JevTriageScore;
 };
 
 const UTC_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -36,9 +38,9 @@ function formatUtcDate(value: string | null, withTime = false) {
   return `${day} ${month} ${date.getUTCFullYear()}, ${hours}:${minutes}:${seconds} UTC`;
 }
 
-function feedStory(item: TrendRadarItem, index: number): QueueStory {
+function feedStory(item: TrendRadarItem, index: number, jevScore?: JevTriageScore): QueueStory {
   const text = `${item.title} ${item.summary ?? ""}`;
-  const confidence = item.kind === "rss" ? 86 : item.rank && item.rank < 20 ? 82 : 74;
+  const confidence = jevScore?.composite ?? (item.kind === "rss" ? 86 : item.rank && item.rank < 20 ? 82 : 74);
   return {
     id: `feed-${item.id}`,
     title: item.title,
@@ -46,12 +48,13 @@ function feedStory(item: TrendRadarItem, index: number): QueueStory {
     url: item.url,
     summary: item.summary || "TrendRadar ranked this signal among the current feed. It is ready for editorial triage and Capco relevance review.",
     topic: /risk|security|governance|regulat/i.test(text) ? "Risk & governance" : /agent|model|llm|ai|robot|inference/i.test(text) ? "AI platforms" : "Technology",
-    impact: confidence >= 84 ? "High" : confidence >= 78 ? "Medium" : "Watch",
+    impact: jevScore ? jevScore.capcoImpact.score >= 72 ? "High" : jevScore.capcoImpact.score >= 45 ? "Medium" : "Watch" : confidence >= 84 ? "High" : confidence >= 78 ? "Medium" : "Watch",
     confidence,
     signal: String(index + 1).padStart(2, "0"),
     published: formatUtcDate(item.publishedAt),
     implication: "Help the client translate the visible AI signal into a decision about operating model, ownership, controls, or customer experience.",
     kind: "feed",
+    jevScore,
   };
 }
 
@@ -86,6 +89,26 @@ export function CommandCenter({ trendRadar }: { trendRadar: TrendRadarFeed }) {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [showAllStories, setShowAllStories] = useState(false);
+  const [jevScores, setJevScores] = useState<Record<string, JevTriageScore>>({});
+  const [jevStatus, setJevStatus] = useState<"loading" | "ready" | "fallback" | "error">("loading");
+  const [jevModel, setJevModel] = useState("jev-latest");
+
+  async function rankWithJev() {
+    setJevStatus("loading");
+    try {
+      const response = await fetch("/api/triage-rank", { method: "POST", cache: "no-store" });
+      if (!response.ok) throw new Error("Jev triage ranking failed");
+      const result = await response.json() as { scores?: JevTriageScore[]; model?: string };
+      const scores = result.scores ?? [];
+      setJevScores(Object.fromEntries(scores.map((score) => [score.itemId, score])));
+      setJevModel(result.model ?? "jev-latest");
+      setJevStatus(scores.some((score) => score.model === "local-triage-fallback") ? "fallback" : "ready");
+    } catch {
+      setJevStatus("error");
+    }
+  }
+
+  useEffect(() => { void rankWithJev(); }, []);
 
   useEffect(() => {
     const openPreview = () => setShowEmail(true);
@@ -93,8 +116,9 @@ export function CommandCenter({ trendRadar }: { trendRadar: TrendRadarFeed }) {
     return () => window.removeEventListener("open-email-preview", openPreview);
   }, []);
 
-  const sourceCandidates = useMemo(() => showAllStories ? feed.items : selectWeeklyCandidates(feed, 8), [feed, showAllStories]);
-  const queueStories = useMemo(() => aiBrief ? aiBrief.brief.stories.map(briefStory) : sourceCandidates.map(feedStory), [aiBrief, sourceCandidates]);
+  const jevOrderedItems = useMemo(() => [...feed.items].sort((a, b) => (jevScores[b.id]?.composite ?? -1) - (jevScores[a.id]?.composite ?? -1)), [feed.items, jevScores]);
+  const sourceCandidates = useMemo(() => showAllStories ? jevOrderedItems : jevScores && Object.keys(jevScores).length ? jevOrderedItems.slice(0, 8) : selectWeeklyCandidates(feed, 8), [feed, jevOrderedItems, jevScores, showAllStories]);
+  const queueStories = useMemo(() => aiBrief ? aiBrief.brief.stories.map(briefStory) : sourceCandidates.map((item, index) => feedStory(item, index, jevScores[item.id])), [aiBrief, sourceCandidates, jevScores]);
   const visibleStories = useMemo(() => queueStories.filter((story) => {
     const matchesQuery = !query || `${story.title} ${story.source} ${story.summary}`.toLowerCase().includes(query.toLowerCase());
     const matchesFilter = signalFilter === "All signals" || story.topic === signalFilter;
@@ -128,6 +152,8 @@ export function CommandCenter({ trendRadar }: { trendRadar: TrendRadarFeed }) {
       const latest = await response.json() as TrendRadarFeed & { sync?: { added: number; successful: string[]; failed: string[]; attempted: number } };
       setFeed(latest);
       setAiBrief(null);
+      setJevScores({});
+      void rankWithJev();
       setSelectedId("");
       setIncludedIds([]);
       const failed = latest.sync?.failed.length ?? 0;
@@ -144,7 +170,7 @@ export function CommandCenter({ trendRadar }: { trendRadar: TrendRadarFeed }) {
     setIncludedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   }
 
-  const providerLabel = aiBrief?.meta.provider === "openai-compatible" ? `Generated with ${aiBrief.meta.model}` : aiBrief ? "Grounded local draft" : "Awaiting editorial synthesis";
+  const providerLabel = aiBrief?.meta.provider === "openai-compatible" ? `Generated with ${aiBrief.meta.model}` : aiBrief ? "Grounded local draft" : jevStatus === "ready" ? `${jevModel} triage ranking active` : jevStatus === "fallback" ? "Local triage fallback active" : "Awaiting Jev triage ranking";
 
   return <>
     <div className="pipeline-indicator"><div><span className="pipeline-kicker">Editorial pipeline</span><span className="pipeline-slash">/</span><span className="pipeline-stage">Stage 01: Live repository</span><span className="pipeline-slash">/</span><span className="pipeline-live"><i /> Streaming {feed.source.platformCount || 11} source channels</span></div><div><span>EDITION REF:</span><strong>W42-GENAI-WEALTH-BANKING</strong><span className="updated-chip">Updated {feed.source.crawlTime ?? "today"}</span></div></div>
