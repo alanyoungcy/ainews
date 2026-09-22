@@ -67,6 +67,13 @@ jobs:
             --language en \
             --output data/trendradar/latest.json
 
+      - name: Merge configured English RSS feeds
+        run: |
+          python scripts/merge_rss_feeds.py \
+            --config config/english-rss.json \
+            --input data/trendradar/latest.json \
+            --output data/trendradar/latest.json
+
       - name: Commit refreshed feed
         uses: stefanzweifel/git-auto-commit-action@v6
         with:

@@ -21,6 +21,13 @@ excluded from the dashboard counts, queue, and AI candidate selection. To
 include every TrendRadar item, set `TREND_RADAR_LANGUAGE=all` in `.env.local`
 and restart Next.js.
 
+The bridge also merges the feeds listed in
+`config/english-rss.json` (Fast Company, Forbes, SlashGear, VentureBeat, The
+Verge, Engadget, Tech in Asia, TechCrunch, and Forbes Leadership). The weekly
+GitHub Action merges them after the TrendRadar crawler, and the dashboard's
+**Sync latest TrendRadar** button fetches them immediately for the current
+workspace session.
+
 ## AI editorial layer
 
 The dashboard's `Run AI synthesis` action reads the normalized feed and creates

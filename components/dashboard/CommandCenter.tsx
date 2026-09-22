@@ -110,12 +110,14 @@ export function CommandCenter({ trendRadar }: { trendRadar: TrendRadarFeed }) {
     try {
       const response = await fetch("/api/trendradar", { method: "POST", cache: "no-store" });
       if (!response.ok) throw new Error("TrendRadar sync failed");
-      const latest = await response.json() as TrendRadarFeed;
+      const latest = await response.json() as TrendRadarFeed & { sync?: { added: number; successful: string[]; failed: string[]; attempted: number } };
       setFeed(latest);
       setAiBrief(null);
       setSelectedId("");
       setIncludedIds([]);
-      setSyncMessage(`${latest.source.totalItems} stories loaded · ${latest.source.syncedAt ? new Date(latest.source.syncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "snapshot ready"}`);
+      const failed = latest.sync?.failed.length ?? 0;
+      const failedNames = latest.sync?.failed.slice(0, 2).map((item) => item.split(":")[0]).join(", ");
+      setSyncMessage(`${latest.source.totalItems} stories loaded · ${latest.sync?.added ?? 0} new RSS items · ${failed ? `${failed} feeds unavailable${failedNames ? ` (${failedNames})` : ""}` : `${latest.sync?.successful.length ?? 0} feeds refreshed`}`);
     } catch {
       setSyncMessage("Could not load the latest TrendRadar snapshot.");
     } finally {
