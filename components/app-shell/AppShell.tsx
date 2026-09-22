@@ -15,28 +15,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand-lockup">
-          <div className="brand-mark">C</div>
-          <div>
-            <div className="brand-name">Capco</div>
-            <div className="brand-subtitle">AI intelligence</div>
+      <header className="studio-header">
+        <div className="studio-header-inner">
+          <div className="studio-brand-group">
+            <Link className="studio-brand" href="/">
+              <span className="studio-mark">C</span>
+              <span className="studio-brand-copy"><strong>Capco Intel</strong><small>AI-News Workspace</small></span>
+            </Link>
+            <div className="studio-divider" />
+            <div className="edition-context"><strong>Week 42 Edition: GenAI in Tier-1 Wealth &amp; Banking</strong><span><i />Status: Drafting / HITL Stage 2 of 3</span></div>
+          </div>
+          <nav className="pipeline-nav" aria-label="Editorial pipeline">
+            <Link className={pathname === "/" ? "active" : ""} href="/"><span>01 Triage &amp; Ingestion</span><small>Live</small></Link>
+            <Link className={pathname.startsWith("/editions") ? "active" : ""} href="/editions/week-42-2026"><span>02 Editorial Synthesis</span><small>{pathname.startsWith("/editions") ? "Review" : "Ready"}</small></Link>
+            <Link className={pathname.startsWith("/infographics") ? "active" : ""} href="/infographics/operating-model"><span>03 Infographic Studio</span><small>{pathname.startsWith("/infographics") ? "Active" : "Next"}</small></Link>
+            <Link className={pathname.startsWith("/dispatch") ? "active" : ""} href="/dispatch"><span>04 Dispatch &amp; Newsletter</span><small>{pathname.startsWith("/dispatch") ? "Preview" : "Pending"}</small></Link>
+          </nav>
+          <div className="studio-actions">
+            <div className="edition-chip"><span>Edition:</span><strong>W42-2026</strong><Icon name="chevron" size={14} /></div>
+            <span className="autosave-status"><Icon name="refresh" size={13} /> Auto-saved</span>
+            <Link className="quick-export" href="/dispatch"><Icon name="download" size={14} /> Quick Export Brief</Link>
+            <div className="studio-user"><span className="studio-user-copy"><strong>Alex Young</strong><small>Editorial lead</small></span><span className="studio-avatar">AY</span></div>
           </div>
         </div>
-        <div className="sidebar-rule" />
-        <nav className="side-nav" aria-label="Primary navigation">
-          <div className="side-nav-label">Workspace</div>
-          {navItems.map((item) => {
-            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-            return <Link className={`side-link ${active ? "active" : ""}`} href={item.href} key={item.href}><Icon name={item.icon} size={17} /><span>{item.label}</span>{active && <span className="active-dot" />}</Link>;
-          })}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="side-nav-label">System</div>
-          <Link className={`side-link ${pathname === "/settings" ? "active" : ""}`} href="/settings"><Icon name="settings" size={17} /><span>Settings</span></Link>
-          <div className="profile-card"><div className="avatar">AY</div><div><div className="profile-name">Alex Young</div><div className="profile-role">Editorial lead</div></div><Icon name="chevron" size={15} /></div>
-        </div>
-      </aside>
+      </header>
       <main className="main-content">{children}</main>
     </div>
   );

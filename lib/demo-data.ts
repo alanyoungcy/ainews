@@ -108,9 +108,9 @@ export const infographicTemplates = [
 ];
 
 export const edition = {
-  id: "week-38-2026",
-  period: "08–14 September 2026",
+  id: "week-42-2026",
+  period: "12–18 October 2026",
   status: "Draft for review",
-  outlook: "The AI story is moving from capability to choreography. This week’s signals point to a quieter, more consequential shift: the operating model around models is becoming the differentiator.",
+  outlook: "GenAI is moving from capability to choreography across Tier-1 wealth and banking. The differentiator is becoming the operating model around models: decision rights, controls, and client experience.",
   editorialNote: "Keep the edition practical. Lead with what changed in the work, then show the decision a client can make next.",
 };
