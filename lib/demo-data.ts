@@ -85,11 +85,11 @@ export const stories: Story[] = [
 ];
 
 export const sources = [
-  { name: "Financial Times · AI", type: "RSS", topics: "Markets, operating model", trust: 96, lastFetch: "12 min ago", status: "Healthy", articles: 28, enabled: true },
-  { name: "The Economist · Technology Quarterly", type: "RSS", topics: "Risk, geopolitics", trust: 91, lastFetch: "31 min ago", status: "Healthy", articles: 19, enabled: true },
-  { name: "MIT Technology Review", type: "Web", topics: "Research, customer", trust: 88, lastFetch: "1 hr ago", status: "Needs review", articles: 14, enabled: true },
-  { name: "The Verge · AI", type: "RSS", topics: "Technology, product", trust: 79, lastFetch: "2 hrs ago", status: "Healthy", articles: 33, enabled: true },
-  { name: "Capco Insights", type: "Web", topics: "Internal, sectors", trust: 98, lastFetch: "Yesterday", status: "Healthy", articles: 9, enabled: false },
+  { name: "OpenAI News", type: "RSS", topics: "Models, product updates", trust: 98, lastFetch: "Awaiting sync", status: "Healthy", articles: 0, enabled: true },
+  { name: "Hugging Face Blog", type: "RSS", topics: "Models, tooling", trust: 94, lastFetch: "Awaiting sync", status: "Healthy", articles: 0, enabled: true },
+  { name: "MIT Technology Review · AI", type: "RSS", topics: "Analysis, industry context", trust: 96, lastFetch: "Awaiting sync", status: "Healthy", articles: 0, enabled: true },
+  { name: "Google AI Blog", type: "RSS", topics: "Models, platforms", trust: 95, lastFetch: "Awaiting sync", status: "Healthy", articles: 0, enabled: true },
+  { name: "MarkTechPost", type: "RSS", topics: "Research, launches", trust: 86, lastFetch: "Awaiting sync", status: "Healthy", articles: 0, enabled: true },
 ];
 
 export const workflowNodes = [

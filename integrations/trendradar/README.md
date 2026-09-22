@@ -21,12 +21,17 @@ excluded from the dashboard counts, queue, and AI candidate selection. To
 include every TrendRadar item, set `TREND_RADAR_LANGUAGE=all` in `.env.local`
 and restart Next.js.
 
-The bridge also merges the feeds listed in
-`config/english-rss.json` (Fast Company, Forbes, SlashGear, VentureBeat, The
-Verge, Engadget, Tech in Asia, TechCrunch, and Forbes Leadership). The weekly
-GitHub Action merges them after the TrendRadar crawler, and the dashboard's
-**Sync latest TrendRadar** button fetches them immediately for the current
-workspace session.
+The bridge also merges the direct AI feeds listed in
+`config/english-rss.json` (OpenAI News, Hugging Face Blog, MIT Technology
+Review AI, Google AI Blog, and MarkTechPost). The weekly GitHub Action merges
+them after the TrendRadar crawler, and the dashboard's **Sync latest
+TrendRadar** button fetches them immediately for the current workspace
+session.
+
+Additional community-maintained discovery references are kept in
+`config/rss-discovery.json`. They are intentionally not fetched as article
+feeds because the GitHub repository and Reddit thread are curation pages, not
+RSS endpoints.
 
 ## AI editorial layer
 
