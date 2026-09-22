@@ -43,7 +43,8 @@ export default function EditionPage() {
   const reviewStories = useMemo<ReviewStory[]>(() => aiBrief?.brief.stories.map((story, index) => ({ id: `ai-story-${index + 1}`, signal: String(index + 1).padStart(2, "0"), title: story.title, source: story.source, topic: "AI signal", impact: story.confidence >= 80 ? "High" : story.confidence >= 65 ? "Medium" : "Watch", confidence: Math.round(story.confidence), summary: story.fact, implication: story.capcoImplication, url: story.url })) ?? stories.map((story) => ({ id: `story-${story.rank}`, signal: story.signal, title: story.title, source: story.source, topic: story.topic, impact: story.impact, confidence: story.confidence, summary: story.summary, implication: audience === "consultant" ? story.consultant : story.executive, url: null })), [aiBrief, audience]);
   const active = reviewStories.find((story) => story.id === selected) ?? reviewStories[0];
   const allApproved = reviewStories.length > 0 && approved.length === reviewStories.length;
-  function approveStory() { if (!active) return; setApproved((current) => current.includes(active.id) ? current : [...current, active.id]); }
+  function approveStory() { if (!active) return; setApproved((current) => current.includes(active.id) ? current : [...current, active.id]); window.localStorage.setItem("capco-confirmed-story", active.id); }
+  function lockGate() { if (active) window.localStorage.setItem("capco-confirmed-story", active.id); setLocked(true); }
 
   useEffect(() => {
     const validIds = new Set(reviewStories.map((story) => story.id));
