@@ -26,7 +26,9 @@ export default function EditionPage() {
     setBriefStatus("loading");
     setBriefError(null);
     try {
-      const response = await fetch("/api/weekly-intelligence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ force }) });
+      const storedIds = window.localStorage.getItem("capco-selected-story-ids");
+      const selectedIds = storedIds ? JSON.parse(storedIds) as unknown : [];
+      const response = await fetch("/api/weekly-intelligence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ force, selectedIds: Array.isArray(selectedIds) ? selectedIds : [] }) });
       if (!response.ok) throw new Error(`Brief service returned ${response.status}`);
       const result = await response.json() as WeeklyBriefResult;
       setAiBrief(result);

@@ -17,10 +17,10 @@ type BriefState = {
 const BRIEF_CACHE_TTL_MS = Number(process.env.AI_BRIEF_CACHE_TTL_MS ?? 15 * 60 * 1000);
 const sharedBriefState = ((globalThis as typeof globalThis & { __capcoWeeklyBriefState?: BriefState }).__capcoWeeklyBriefState ??= { cache: null, inFlight: null });
 
-function feedCacheKey(feed: TrendRadarFeed) {
+function feedCacheKey(feed: TrendRadarFeed, selectedIds: string[] = []) {
   const first = feed.items[0]?.id ?? "empty";
   const last = feed.items[feed.items.length - 1]?.id ?? "empty";
-  return [feed.source.syncedAt ?? "unsynced", feed.source.totalItems, feed.source.rssItems, first, last].join(":");
+  return [feed.source.syncedAt ?? "unsynced", feed.source.totalItems, feed.source.rssItems, first, last, [...selectedIds].sort().join(",") || "default"].join(":");
 }
 
 function persistedBriefPath() {
@@ -48,8 +48,9 @@ function persistBrief(entry: BriefCacheEntry) {
   }
 }
 
-export async function getWeeklyBrief(feed: TrendRadarFeed, options: { force?: boolean } = {}) {
-  const key = feedCacheKey(feed);
+export async function getWeeklyBrief(feed: TrendRadarFeed, options: { force?: boolean; selectedIds?: string[] } = {}) {
+  const selectedIds = options.selectedIds ?? [];
+  const key = feedCacheKey(feed, selectedIds);
   const now = Date.now();
   if (!options.force) {
     const persisted = readPersistedBrief(key, now);
@@ -58,7 +59,7 @@ export async function getWeeklyBrief(feed: TrendRadarFeed, options: { force?: bo
   if (!options.force && sharedBriefState.cache && sharedBriefState.cache.key === key && sharedBriefState.cache.expiresAt > now) return sharedBriefState.cache.result;
   if (!options.force && sharedBriefState.inFlight?.key === key) return sharedBriefState.inFlight.promise;
 
-  const promise = generateWeeklyBrief(feed).then((result) => {
+  const promise = generateWeeklyBrief(feed, selectedIds).then((result) => {
     const isFallback = result.meta.provider === "fallback";
     sharedBriefState.cache = { key, result, expiresAt: Date.now() + (isFallback ? Math.min(BRIEF_CACHE_TTL_MS, 60_000) : BRIEF_CACHE_TTL_MS) };
     persistBrief(sharedBriefState.cache);

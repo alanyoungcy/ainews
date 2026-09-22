@@ -49,20 +49,20 @@ function candidateScore(item: TrendRadarItem) {
   return score;
 }
 
-export function selectWeeklyCandidates(feed: TrendRadarFeed, limit = 18): TrendRadarItem[] {
+export function selectWeeklyCandidates(feed: TrendRadarFeed, limit = 18, selectedIds: string[] = []): TrendRadarItem[] {
   const selected = [...feed.items]
     .filter((item) => {
       const text = `${item.title} ${item.summary ?? ""}`;
-      return AI_KEYWORDS.test(text) && !NOISE_KEYWORDS.test(text);
+      return selectedIds.includes(item.id) || (AI_KEYWORDS.test(text) && !NOISE_KEYWORDS.test(text));
     })
     .filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index)
-    .sort((a, b) => candidateScore(b) - candidateScore(a) || (a.rank ?? 9999) - (b.rank ?? 9999))
+    .sort((a, b) => (selectedIds.includes(b.id) ? 1 : 0) - (selectedIds.includes(a.id) ? 1 : 0) || candidateScore(b) - candidateScore(a) || (a.rank ?? 9999) - (b.rank ?? 9999))
     .slice(0, limit);
   return selected.length ? selected : feed.items.slice(0, limit);
 }
 
-export function buildFallbackBrief(feed: TrendRadarFeed): WeeklyBriefResult {
-  const candidates = selectWeeklyCandidates(feed, 5);
+export function buildFallbackBrief(feed: TrendRadarFeed, selectedIds: string[] = []): WeeklyBriefResult {
+  const candidates = selectWeeklyCandidates(feed, selectedIds.length ? selectedIds.length : 5, selectedIds);
   const stories = candidates.map((item, index) => ({
     title: item.title,
     source: item.source,
@@ -109,14 +109,14 @@ function extractJson(text: string): unknown {
   return JSON.parse(candidate);
 }
 
-export async function generateWeeklyBrief(feed: TrendRadarFeed): Promise<WeeklyBriefResult> {
+export async function generateWeeklyBrief(feed: TrendRadarFeed, selectedIds: string[] = []): Promise<WeeklyBriefResult> {
   const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
   const baseUrl = (process.env.AI_API_BASE || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
   const model = process.env.AI_MODEL || "gpt-4o-mini";
   const providerTimeoutMs = Number(process.env.AI_PROVIDER_TIMEOUT_MS ?? 120000);
-  if (!apiKey) return buildFallbackBrief(feed);
+  if (!apiKey) return buildFallbackBrief(feed, selectedIds);
 
-  const candidates = selectWeeklyCandidates(feed);
+  const candidates = selectWeeklyCandidates(feed, selectedIds.length ? selectedIds.length : 18, selectedIds);
   const prompt = {
     audience: "Capco consultants and executives",
     requirement: "Create a grounded weekly AI news communication with a clear Capco perspective. Separate facts from implications. Use only the supplied items. Return JSON only.",
@@ -156,7 +156,7 @@ export async function generateWeeklyBrief(feed: TrendRadarFeed): Promise<WeeklyB
       meta: { provider: "openai-compatible", model, groundedItems: candidates.length, groundedSources: new Set(candidates.map((item) => item.sourceId)).size, generatedAt: new Date().toISOString() },
     };
   } catch (error) {
-    const fallback = buildFallbackBrief(feed);
+    const fallback = buildFallbackBrief(feed, selectedIds);
     const providerError = error instanceof Error
       ? /timeout|abort/i.test(error.message)
         ? `AI provider timed out after ${Math.round(providerTimeoutMs / 1000)} seconds at ${baseUrl}. Check the selected model if this repeats.`

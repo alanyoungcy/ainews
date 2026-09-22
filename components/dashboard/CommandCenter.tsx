@@ -136,12 +136,15 @@ export function CommandCenter({ trendRadar }: { trendRadar: TrendRadarFeed }) {
     setSynthesizing(true);
     setAiError(null);
     try {
-      const response = await fetch("/api/weekly-intelligence", { method: "POST" });
+      const selectedSourceIds = includedIds.filter((id) => id.startsWith("feed-")).map((id) => id.slice(5));
+      window.localStorage.setItem("capco-selected-story-ids", JSON.stringify(selectedSourceIds));
+      const response = await fetch("/api/weekly-intelligence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ selectedIds: selectedSourceIds }) });
       if (!response.ok) throw new Error("Weekly synthesis failed");
       const result = await response.json() as WeeklyBriefResult;
       setAiBrief(result);
       setSelectedId("ai-story-1");
       setIncludedIds(result.brief.stories.slice(0, 3).map((_, index) => `ai-story-${index + 1}`));
+      window.location.href = "/editions/current";
     } catch {
       setAiError("The weekly synthesis could not be completed. Check the provider configuration and try again.");
     } finally {
