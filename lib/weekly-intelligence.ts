@@ -113,6 +113,7 @@ export async function generateWeeklyBrief(feed: TrendRadarFeed): Promise<WeeklyB
   const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY;
   const baseUrl = (process.env.AI_API_BASE || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
   const model = process.env.AI_MODEL || "gpt-4o-mini";
+  const providerTimeoutMs = Number(process.env.AI_PROVIDER_TIMEOUT_MS ?? 120000);
   if (!apiKey) return buildFallbackBrief(feed);
 
   const candidates = selectWeeklyCandidates(feed);
@@ -143,7 +144,7 @@ export async function generateWeeklyBrief(feed: TrendRadarFeed): Promise<WeeklyB
           { role: "user", content: JSON.stringify(prompt) },
         ],
       }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(providerTimeoutMs),
     });
     if (!response.ok) throw new Error(`AI provider returned ${response.status}`);
     const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
@@ -158,7 +159,7 @@ export async function generateWeeklyBrief(feed: TrendRadarFeed): Promise<WeeklyB
     const fallback = buildFallbackBrief(feed);
     const providerError = error instanceof Error
       ? /timeout|abort/i.test(error.message)
-        ? `AI provider timed out after 8 seconds at ${baseUrl}.`
+        ? `AI provider timed out after ${Math.round(providerTimeoutMs / 1000)} seconds at ${baseUrl}. Check the selected model if this repeats.`
         : /fetch failed|network|resolve|connect/i.test(error.message)
           ? `Could not reach the AI provider at ${baseUrl}.`
           : error.message.slice(0, 160)
