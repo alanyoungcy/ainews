@@ -4,3 +4,7 @@ import { getTrendRadarFeed } from "@/lib/trendradar";
 export async function GET() {
   return NextResponse.json(getTrendRadarFeed());
 }
+
+export async function POST() {
+  return NextResponse.json(getTrendRadarFeed());
+}
