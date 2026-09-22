@@ -60,13 +60,33 @@ export default function InfographicPage() {
       setAiBrief(result);
       setBriefStatus(result.meta.provider === "fallback" ? "fallback" : "ready");
       setBriefError(result.meta.providerError ?? null);
-      const savedStory = window.localStorage.getItem("capco-confirmed-story");
-      if (savedStory && result.brief.stories.some((_, index) => `ai-story-${index + 1}` === savedStory)) setSelectedStoryId(savedStory);
+      try {
+        window.localStorage.setItem("capco-weekly-brief", JSON.stringify(result));
+        const savedStory = window.localStorage.getItem("capco-confirmed-story");
+        if (savedStory && result.brief.stories.some((_, index) => `ai-story-${index + 1}` === savedStory)) setSelectedStoryId(savedStory);
+      } catch {
+        logActivity("Brief loaded · browser cache unavailable");
+      }
       logActivity(result.meta.provider === "fallback" ? "Grounded local brief restored · safe to review" : `AI brief ready · ${result.meta.model}`);
     } catch (error) {
-      setBriefStatus("error");
-      setBriefError(error instanceof Error ? error.message : "Could not load the infographic brief");
-      logActivity("Brief unavailable · retry before generating a new backdrop");
+      const message = error instanceof Error ? error.message : "Could not load the infographic brief";
+      let restored: WeeklyBriefResult | null = null;
+      try {
+        const cached = window.localStorage.getItem("capco-weekly-brief");
+        if (cached) restored = JSON.parse(cached) as WeeklyBriefResult;
+      } catch {
+        restored = null;
+      }
+      if (restored?.brief) {
+        setAiBrief(restored);
+        setBriefStatus("fallback");
+        setBriefError(`Local brief restored because the brief service was unavailable: ${message}`);
+        logActivity("Network unavailable · local source-grounded brief restored");
+      } else {
+        setBriefStatus("error");
+        setBriefError(message);
+        logActivity("Brief unavailable · start the local app, then retry");
+      }
     }
   }
 
