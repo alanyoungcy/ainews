@@ -64,6 +64,7 @@ jobs:
           python scripts/sync_trendradar.py \
             --db "${{ steps.snapshot.outputs.news_path }}" \
             --rss-db "${{ steps.snapshot.outputs.rss_path }}" \
+            --language en \
             --output data/trendradar/latest.json
 
       - name: Commit refreshed feed

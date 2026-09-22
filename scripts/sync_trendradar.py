@@ -20,6 +20,27 @@ REPOSITORY = "https://github.com/alanyoungcy/trendradar-capco"
 SCHEMA_VERSION = 1
 
 
+def contains_cjk(value: str | None) -> bool:
+    return any(("\u3400" <= character <= "\u9fff") or ("\u3040" <= character <= "\u30ff") or ("\uac00" <= character <= "\ud7af") for character in (value or ""))
+
+
+def filter_language(payload: dict, language: str) -> dict:
+    if language.lower() not in {"en", "english"}:
+        return payload
+    items = [item for item in payload["items"] if not contains_cjk(item.get("title")) and not contains_cjk(item.get("summary")) and not contains_cjk(item.get("source"))]
+    hotlist = [item for item in items if item["kind"] == "hotlist"]
+    rss = [item for item in items if item["kind"] == "rss"]
+    payload["items"] = items
+    payload["source"].update({
+        "totalItems": len(items),
+        "hotListItems": len(hotlist),
+        "rssItems": len(rss),
+        "platformCount": len({item["sourceId"] for item in hotlist}),
+        "rssFeedCount": len({item["sourceId"] for item in rss}),
+    })
+    return payload
+
+
 def read_snapshot(db_path: Path, rss_db_path: Path | None = None) -> dict:
     if not db_path.exists():
         raise FileNotFoundError(f"TrendRadar database not found: {db_path}")
@@ -140,9 +161,10 @@ def main() -> None:
     parser.add_argument("--db", required=True, type=Path, help="TrendRadar output/news/*.db path")
     parser.add_argument("--rss-db", type=Path, help="TrendRadar output/rss/*.db path")
     parser.add_argument("--output", required=True, type=Path, help="Normalized JSON output path")
+    parser.add_argument("--language", default="en", help="Output language filter; use all to keep every item")
     args = parser.parse_args()
 
-    payload = read_snapshot(args.db, args.rss_db)
+    payload = filter_language(read_snapshot(args.db, args.rss_db), args.language)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Synced {len(payload['items'])} TrendRadar items from {args.db} to {args.output}")
