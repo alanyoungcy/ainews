@@ -1,5 +1,14 @@
 import type { WeeklyBrief } from "@/lib/weekly-intelligence";
 
+export const CAPCO_INFOGRAPHIC_STYLE_TEMPLATE = [
+  "Capco editorial system: premium institutional consulting visual, dark teal/ink/navy foundation with white and pale-mint type.",
+  "Use a disciplined modular grid with thin hairline dividers, framed data cells, compact uppercase labels, and one dominant explanatory structure.",
+  "Choose one visual grammar that fits the archetype: radial governance map, treemap, ring, contour field, dotted particle system, flowing ribbon, or three-tier operating path.",
+  "Use restrained Capco gold, aqua, mint, violet, or magenta accents as signal colours; keep gradients directional and controlled.",
+  "Reserve a quiet upper-left or central-left region and a clear footer band for deterministic overlays, provenance, legal clearance, and watermarking.",
+  "The visual should feel like a data-led executive infographic or strategic advisory cover, not a generic futuristic banking illustration.",
+].join(" ");
+
 export type InfographicStory = {
   title: string;
   source: string;
@@ -36,9 +45,9 @@ export function buildInfographicPrompt(options: WeeklyBrief | InfographicArtwork
     `Composition archetype: ${archetype}. Build a confident left-to-right operating flow with five distinct visual zones: ${sections}.`,
     `Consultant art direction: ${config.prompt ?? ""}`,
     `Deterministic seed reference: ${config.seed ?? "auto"}.`,
-    "Style: premium editorial consulting, dark navy foundation, warm orange human decision path, restrained cobalt blue automated activity, subtle green completion cues, thin technical lines, generous negative space for deterministic text overlays.",
+    `Capco style template: ${CAPCO_INFOGRAPHIC_STYLE_TEMPLATE}`,
     "Constraints: no words, letters, numbers, logos, fake charts, labels, or watermarks; leave quiet low-detail zones for exact typography; artwork must feel useful as a background for SVG overlays.",
-    "Avoid: neon gradients, generic futuristic cityscapes, glossy 3D blobs, stock photography, illegible UI text, and decorative noise.",
+    "Avoid: neon rainbow gradients, generic futuristic cityscapes, glossy 3D blobs, stock photography, illegible UI text, rounded SaaS card grids, and decorative noise.",
   ].join("\n");
 }
 
