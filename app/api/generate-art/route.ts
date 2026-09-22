@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { generateInfographicArtwork } from "@/lib/infographic";
-import { infographicMemoryKey, readInfographicMemory, writeInfographicMemory } from "@/lib/infographic-memory.server";
+import { infographicMemoryKey, readInfographicMemory, readLatestInfographicMemory, writeInfographicMemory } from "@/lib/infographic-memory.server";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export async function GET() {
+  const latest = readLatestInfographicMemory();
+  return NextResponse.json(latest ?? { status: "empty", output: null }, {
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
+}
 
 export async function POST(request: Request) {
   try {

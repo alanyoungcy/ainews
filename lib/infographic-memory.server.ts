@@ -41,6 +41,15 @@ export function readInfographicMemory(key: string) {
   }
 }
 
+export function readLatestInfographicMemory() {
+  try {
+    const entries = JSON.parse(fs.readFileSync(memoryPath(), "utf8")) as MemoryEntry[];
+    return entries[0]?.result ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function writeInfographicMemory(key: string, result: Record<string, unknown>) {
   try {
     const filePath = memoryPath();

@@ -97,6 +97,15 @@ export default function InfographicPage() {
       if (!response.ok) throw new Error(result.message ?? `Artwork service returned ${response.status}`);
       if (result.status === "generated" && result.output) {
         setArtworkUrl(result.output);
+        try {
+          // Keep a lightweight handoff for the next screen. Large base64 images
+          // can exceed browser storage limits, so persistence must never turn a
+          // successful generation into a failed run.
+          window.localStorage.setItem("capco-infographic-artwork", result.output);
+          window.localStorage.setItem("capco-infographic-artwork-meta", JSON.stringify({ model: result.model ?? "configured image model", generatedAt: new Date().toISOString() }));
+        } catch {
+          logActivity("Browser handoff storage unavailable · server visual memory retained");
+        }
         setArtworkModel(result.model ?? "configured image model");
         setArtworkStatus(result.cached ? "cached" : "generated");
         logActivity(result.cached ? "Backdrop restored from visual memory · no provider wait" : "Backdrop received from image model");
