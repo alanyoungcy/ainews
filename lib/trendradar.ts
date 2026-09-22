@@ -54,10 +54,32 @@ const fallbackFeed: TrendRadarFeed = {
 export function getTrendRadarFeed(): TrendRadarFeed {
   try {
     const filePath = path.join(process.cwd(), "data", "trendradar", "latest.json");
-    return JSON.parse(fs.readFileSync(filePath, "utf8")) as TrendRadarFeed;
+    const feed = JSON.parse(fs.readFileSync(filePath, "utf8")) as TrendRadarFeed;
+    return filterTrendRadarLanguage(feed);
   } catch {
     return fallbackFeed;
   }
+}
+
+function containsCjk(value: string | null | undefined) {
+  return /[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/u.test(value ?? "");
+}
+
+export function filterTrendRadarLanguage(feed: TrendRadarFeed): TrendRadarFeed {
+  const language = (process.env.TREND_RADAR_LANGUAGE ?? "en").toLowerCase();
+  if (language !== "en" && language !== "english") return feed;
+
+  const items = feed.items.filter((item) => !containsCjk(item.title) && !containsCjk(item.summary) && !containsCjk(item.source));
+  const hotListItems = items.filter((item) => item.kind === "hotlist").length;
+  const rssItems = items.filter((item) => item.kind === "rss").length;
+  const platformCount = new Set(items.filter((item) => item.kind === "hotlist").map((item) => item.sourceId)).size;
+  const rssFeedCount = new Set(items.filter((item) => item.kind === "rss").map((item) => item.sourceId)).size;
+
+  return {
+    ...feed,
+    source: { ...feed.source, totalItems: items.length, hotListItems, rssItems, platformCount, rssFeedCount },
+    items,
+  };
 }
 
 export function getTrendRadarStatus(feed: TrendRadarFeed) {

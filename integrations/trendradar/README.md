@@ -13,6 +13,14 @@ The bridge deliberately keeps TrendRadar responsible for collection and
 ranking. The Next.js application can then use the feed for topic selection,
 grounded summaries, and the weekly infographic generation step.
 
+## English-only editorial mode
+
+The workspace defaults to English-only mode with `TREND_RADAR_LANGUAGE=en`.
+Items containing CJK characters in the title, summary, or source name are
+excluded from the dashboard counts, queue, and AI candidate selection. To
+include every TrendRadar item, set `TREND_RADAR_LANGUAGE=all` in `.env.local`
+and restart Next.js.
+
 ## AI editorial layer
 
 The dashboard's `Run AI synthesis` action reads the normalized feed and creates
