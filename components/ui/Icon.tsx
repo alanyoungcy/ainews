@@ -1,4 +1,4 @@
-type IconName = "grid" | "rss" | "layers" | "archive" | "settings" | "arrow" | "chevron" | "spark" | "mail" | "check" | "plus" | "search" | "download" | "refresh" | "close" | "external";
+type IconName = "grid" | "rss" | "layers" | "archive" | "settings" | "arrow" | "chevron" | "spark" | "mail" | "check" | "plus" | "search" | "download" | "refresh" | "close" | "external" | "alert";
 
 export function Icon({ name, size = 18, stroke = 1.7 }: { name: IconName; size?: number; stroke?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: stroke, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, 'aria-hidden': true };
@@ -19,5 +19,6 @@ export function Icon({ name, size = 18, stroke = 1.7 }: { name: IconName; size?:
     case "refresh": return <svg {...common}><path d="M20 11a8 8 0 0 0-14.9-4L3 10"/><path d="M3 4v6h6"/><path d="M4 13a8 8 0 0 0 14.9 4L21 14"/><path d="M21 20v-6h-6"/></svg>;
     case "close": return <svg {...common}><path d="m6 6 12 12M18 6 6 18"/></svg>;
     case "external": return <svg {...common}><path d="M14 5h5v5"/><path d="m19 5-8 8"/><path d="M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>;
+    case "alert": return <svg {...common}><path d="M12 4 3.5 19h17L12 4Z"/><path d="M12 9v4"/><path d="M12 16h.01"/></svg>;
   }
 }
