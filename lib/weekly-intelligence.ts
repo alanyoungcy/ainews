@@ -156,11 +156,18 @@ export async function generateWeeklyBrief(feed: TrendRadarFeed): Promise<WeeklyB
     };
   } catch (error) {
     const fallback = buildFallbackBrief(feed);
+    const providerError = error instanceof Error
+      ? /timeout|abort/i.test(error.message)
+        ? `AI provider timed out after 8 seconds at ${baseUrl}.`
+        : /fetch failed|network|resolve|connect/i.test(error.message)
+          ? `Could not reach the AI provider at ${baseUrl}.`
+          : error.message.slice(0, 160)
+      : "AI provider request failed";
     return {
       ...fallback,
       meta: {
         ...fallback.meta,
-        providerError: error instanceof Error ? error.message.slice(0, 160) : "Provider request failed",
+        providerError,
       },
     };
   }
