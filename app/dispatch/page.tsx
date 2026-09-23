@@ -44,6 +44,10 @@ function derivePerspectiveHeadline(perspective: string) {
   return `${compact.charAt(0).toUpperCase()}${compact.slice(1)}`.slice(0, 110).replace(/[,:;\s]+$/, "");
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
+}
+
 export default function DispatchPage() {
   const [channel, setChannel] = useState<Channel>("Email");
   const [checked, setChecked] = useState<string[]>([]);
@@ -80,10 +84,12 @@ export default function DispatchPage() {
   function downloadBundle(kind: "html" | "json" | "image") {
     if (!handoff) return;
     if (kind === "image" && artworkUrl) { const link = document.createElement("a"); link.href = artworkUrl; link.target = "_blank"; link.rel = "noreferrer"; link.click(); setMessage("High-resolution infographic opened for download."); return; }
-    const lockedStoryMarkup = dispatchStories.map((story) => `<li><strong>${story.title}</strong> — ${story.source}${story.url ? ` · <a href="${story.url}">${story.url}</a>` : ""}</li>`).join("");
-    const body = kind === "json" ? JSON.stringify(handoff, null, 2) : `<!doctype html><html><head><meta charset="utf-8"><title>${editionTitle}</title></head><body><h1>${editionTitle}</h1><p>${editionSummary}</p><h2>Capco PoV</h2><p>${editionPerspective}</p><h2>Gate 1 locked stories</h2><ul>${lockedStoryMarkup || `<li>${selectedStory?.source ?? "No source stories"}</li>`}</ul></body></html>`;
+    const lockedStoryMarkup = dispatchStories.map((story, index) => `<article class="story"><div class="story-index">S${String(index + 1).padStart(2, "0")}</div><h3>${escapeHtml(story.title)}</h3><p class="source">${escapeHtml(story.source)}${story.url ? ` · <a href="${escapeHtml(story.url)}" target="_blank" rel="noreferrer">Open article ↗</a>` : ""}</p><p><strong>Reported fact:</strong> ${escapeHtml(story.fact)}</p><p><strong>Capco PoV:</strong> ${escapeHtml(story.capcoImplication)}</p></article>`).join("");
+    const artworkMarkup = artworkUrl ? `<img class="hero-art" src="${escapeHtml(artworkUrl)}" alt="Confirmed infographic for the selected story">` : `<div class="no-art">No infographic requested for this edition.</div>`;
+    const body = kind === "json" ? JSON.stringify(handoff, null, 2) : `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(editionTitle)}</title><style>body{margin:0;padding:40px;background:#f4f7fb;color:#0b132b;font-family:Arial,sans-serif;line-height:1.55}.wrap{max-width:960px;margin:0 auto;background:#fff;padding:40px;border:1px solid #dce2ec}h1{font-size:42px;line-height:1.08;margin:8px 0 12px}h2{margin-top:32px;font-size:20px}.kicker,.story-index{color:#57678d;font:700 11px/1.3 monospace;letter-spacing:.12em;text-transform:uppercase}.summary{color:#57678d;font-size:16px}.hero-art{display:block;width:100%;max-height:520px;object-fit:cover;margin:24px 0}.no-art{padding:24px;background:#eef3ff;color:#57678d}.story{padding:20px 0;border-top:1px solid #dce2ec}.story h3{margin:5px 0;font-size:21px}.story p{margin:7px 0;color:#57678d}.story strong{color:#0b132b}.story a{color:#23678c}.footer{margin-top:32px;padding-top:16px;border-top:1px solid #dce2ec;color:#57678d;font:12px monospace}</style></head><body><main class="wrap"><div class="kicker">Weekly advisory signals</div><h1>${escapeHtml(editionTitle)}</h1><p class="summary">${escapeHtml(editionSummary)}</p>${artworkMarkup}<h2>Capco Point of View</h2><p>${escapeHtml(editionPerspective)}</p><h2>Gate 1 locked stories</h2>${lockedStoryMarkup || `<p>No source stories were locked for this edition.</p>`}<div class="footer">Source-grounded · legal review required</div></main></body></html>`;
     const blob = new Blob([body], { type: kind === "json" ? "application/json" : "text/html" });
-    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = kind === "json" ? "capco-edition-bundle.json" : "capco-edition.html"; link.click(); URL.revokeObjectURL(link.href); setMessage("Edition bundle downloaded.");
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a"); link.href = objectUrl; link.download = kind === "json" ? "capco-edition-bundle.json" : "capco-edition.html"; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000); setMessage("Edition bundle downloaded.");
   }
   async function dispatchBundle() {
     if (!allChecked || !handoff) return;
