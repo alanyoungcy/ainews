@@ -12,6 +12,10 @@ type Overlay = { id: string; label: string; value: string; x: number; y: number;
 type Stage02Handoff = { brief: WeeklyBriefResult; stories?: StudioStory[]; selectedStoryId?: string; approvedStoryIds?: string[]; selectedStory?: StudioStory; tone?: string; notes?: string; infographic?: WeeklyBriefResult["brief"]["infographic"]; savedAt?: string };
 type Stage03Handoff = { version: 2; savedAt: string; brief: WeeklyBriefResult | null; stage02?: Stage02Handoff | null; stories: StudioStory[]; selectedStory: StudioStory; visualStyle: { id: string; name: string }; layout: { id: string; name: string }; infographic: WeeklyBriefResult["brief"]["infographic"] | null; metrics: string[]; overlays: Overlay[]; artworkUrl: string | null; referenceImage: string | null; watermark: boolean; legalScrim: boolean; status: string };
 
+function normalizeStory(story: Partial<StudioStory> & { id: string }, index: number): StudioStory {
+  return { id: story.id, title: story.title ?? "Untitled story", source: story.source ?? "TrendRadar", url: story.url ?? story.sourceUrl ?? null, fact: story.fact ?? story.summary ?? "Approved summary pending.", capcoImplication: story.capcoImplication ?? story.implication ?? "Capco PoV pending.", confidence: story.confidence ?? 0, signal: story.signal ?? String(index + 1).padStart(2, "0") };
+}
+
 const visualStyles = [
   { id: "editorial-grid", name: "Corporate consulting", description: "Institutional navy, hairlines, framed facts", preview: "grid" },
   { id: "signal-flow", name: "Minimalist tech", description: "Layered pathways from signal to decision", preview: "flow" },
@@ -53,8 +57,8 @@ export default function InfographicPage() {
   const [activity, setActivity] = useState<string[]>(["Studio opened · waiting for the approved Stage 02 bundle"]);
 
   function logActivity(message: string) { setActivity((current) => [...current.slice(-5), message]); }
-  const stories = useMemo<StudioStory[]>(() => handoff?.stories?.length ? handoff.stories : aiBrief?.brief.stories.map((story, index) => ({ ...story, id: `ai-story-${index + 1}` })) ?? [], [aiBrief, handoff]);
-  const selectedStory = stories.find((story) => story.id === selectedStoryId) ?? handoff?.selectedStory ?? stories[0] ?? null;
+  const stories = useMemo<StudioStory[]>(() => handoff?.stories?.length ? handoff.stories.map(normalizeStory) : aiBrief?.brief.stories.map((story, index) => normalizeStory({ ...story, id: `ai-story-${index + 1}` }, index)) ?? [], [aiBrief, handoff]);
+  const selectedStory = stories.find((story) => story.id === selectedStoryId) ?? (handoff?.selectedStory ? normalizeStory(handoff.selectedStory, 0) : null) ?? stories[0] ?? null;
   const approvedStories = useMemo(() => { const ids = handoff?.approvedStoryIds ?? []; return ids.length ? stories.filter((story) => ids.includes(story.id)) : stories; }, [handoff, stories]);
   const selectedArchetype = archetypes.find((item) => item.id === archetype) ?? archetypes[0];
   const selectedVisualStyle = visualStyles.find((item) => item.id === visualStyle) ?? visualStyles[0];
