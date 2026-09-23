@@ -137,7 +137,10 @@ export function CommandCenter({ trendRadar }: { trendRadar: TrendRadarFeed }) {
     }
   }
 
-  useEffect(() => { void rankWithJev(); }, []);
+  useEffect(() => {
+    if (feed.items.length > 0) void rankWithJev();
+    else setJevStatus("ready");
+  }, [feed.items.length]);
 
   useEffect(() => {
     const openPreview = () => setShowEmail(true);
@@ -146,9 +149,8 @@ export function CommandCenter({ trendRadar }: { trendRadar: TrendRadarFeed }) {
   }, []);
 
   useEffect(() => {
-    if (feed.items.length === 0) void syncLatestFeed();
     void fetch("/api/edition-status", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((status: { sentThisWeek?: boolean; dispatchedStories?: DispatchedStoryMeta[] } | null) => { setSentThisWeek(status?.sentThisWeek ?? false); setDispatchedStories(status?.dispatchedStories ?? []); }).catch(() => { setSentThisWeek(null); setDispatchedStories([]); });
-  }, [feed.items.length]);
+  }, []);
 
   const jevOrderedItems = useMemo(() => feed.items.filter((item) => !jevUniqueIds.length || jevUniqueIds.includes(item.id)).sort((a, b) => (jevScores[b.id]?.composite ?? -1) - (jevScores[a.id]?.composite ?? -1)), [feed.items, jevScores, jevUniqueIds]);
   const eligibleItems = useMemo(() => jevOrderedItems.filter((item) => {
