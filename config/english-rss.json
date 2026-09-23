@@ -1,17 +1,104 @@
 [
-  { "id": "openai-news", "name": "OpenAI News", "homepage": "https://openai.com/news/", "url": "https://openai.com/news/rss.xml" },
-  { "id": "hugging-face-blog", "name": "Hugging Face Blog", "homepage": "https://huggingface.co/blog", "url": "https://huggingface.co/blog/feed.xml" },
-  { "id": "mit-technology-review-ai", "name": "MIT Technology Review · AI", "homepage": "https://www.technologyreview.com/topic/artificial-intelligence/", "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed/" },
-  { "id": "google-ai-blog", "name": "Google AI Blog", "homepage": "https://blog.google/technology/ai/", "url": "https://blog.google/technology/ai/rss/" },
-  { "id": "marktechpost", "name": "MarkTechPost", "homepage": "https://www.marktechpost.com/", "url": "https://www.marktechpost.com/feed/" },
-  { "id": "fast-company-design", "name": "Fast Company · Design", "homepage": "https://www.fastcompany.com/", "url": "http://www.fastcodesign.com/rss.xml" },
-  { "id": "forbes-entrepreneurs", "name": "Forbes · Entrepreneurs", "homepage": "https://www.forbes.com/entrepreneurs/", "url": "http://www.forbes.com/entrepreneurs/index.xml" },
-  { "id": "slashgear", "name": "SlashGear", "homepage": "https://www.slashgear.com/", "url": "https://www.slashgear.com/feed" },
-  { "id": "venturebeat", "name": "VentureBeat", "homepage": "https://venturebeat.com/", "url": "http://venturebeat.com/feed/" },
-  { "id": "the-verge", "name": "The Verge", "homepage": "https://www.theverge.com/", "url": "http://www.theverge.com/rss/full.xml" },
-  { "id": "engadget", "name": "Engadget", "homepage": "https://www.engadget.com/", "url": "http://www.engadget.com/rss-full.xml" },
-  { "id": "tech-in-asia", "name": "Tech in Asia", "homepage": "https://www.techinasia.com/", "url": "https://feeds2.feedburner.com/PennOlson" },
-  { "id": "techcrunch", "name": "TechCrunch", "homepage": "https://techcrunch.com/", "url": "https://techcrunch.com/feed/" },
-  { "id": "forbes-leadership", "name": "Forbes · Leadership", "homepage": "https://www.forbes.com/leadership/", "url": "https://www.forbes.com/leadership/feed/" },
-  { "id": "fast-company-headlines", "name": "Fast Company · Headlines", "homepage": "https://www.fastcompany.com/", "url": "http://feeds.feedburner.com/fastcompany/headlines" }
+  {
+    "id": "openai-news",
+    "name": "OpenAI News",
+    "homepage": "https://openai.com/news/",
+    "url": "https://openai.com/news/rss.xml"
+  },
+  {
+    "id": "hugging-face-blog",
+    "name": "Hugging Face Blog",
+    "homepage": "https://huggingface.co/blog",
+    "url": "https://huggingface.co/blog/feed.xml"
+  },
+  {
+    "id": "mit-technology-review-ai",
+    "name": "MIT Technology Review · AI",
+    "homepage": "https://www.technologyreview.com/topic/artificial-intelligence/",
+    "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed/"
+  },
+  {
+    "id": "google-ai-blog",
+    "name": "Google AI Blog",
+    "homepage": "https://blog.google/technology/ai/",
+    "url": "https://blog.google/technology/ai/rss/"
+  },
+  {
+    "id": "marktechpost",
+    "name": "MarkTechPost",
+    "homepage": "https://www.marktechpost.com/",
+    "url": "https://www.marktechpost.com/feed/"
+  },
+  {
+    "id": "fast-company-design",
+    "name": "Fast Company · Design",
+    "homepage": "https://www.fastcompany.com/",
+    "url": "http://www.fastcodesign.com/rss.xml"
+  },
+  {
+    "id": "forbes-entrepreneurs",
+    "name": "Forbes · Entrepreneurs",
+    "homepage": "https://www.forbes.com/entrepreneurs/",
+    "url": "http://www.forbes.com/entrepreneurs/index.xml"
+  },
+  {
+    "id": "slashgear",
+    "name": "SlashGear",
+    "homepage": "https://www.slashgear.com/",
+    "url": "https://www.slashgear.com/feed"
+  },
+  {
+    "id": "venturebeat",
+    "name": "VentureBeat",
+    "homepage": "https://venturebeat.com/",
+    "url": "https://venturebeat.com/category/ai/feed"
+  },
+  {
+    "id": "the-verge",
+    "name": "The Verge",
+    "homepage": "https://www.theverge.com/",
+    "url": "http://www.theverge.com/rss/full.xml"
+  },
+  {
+    "id": "engadget",
+    "name": "Engadget",
+    "homepage": "https://www.engadget.com/",
+    "url": "http://www.engadget.com/rss-full.xml"
+  },
+  {
+    "id": "tech-in-asia",
+    "name": "Tech in Asia",
+    "homepage": "https://www.techinasia.com/",
+    "url": "https://feeds2.feedburner.com/PennOlson"
+  },
+  {
+    "id": "techcrunch",
+    "name": "TechCrunch",
+    "homepage": "https://techcrunch.com/",
+    "url": "https://techcrunch.com/feed/"
+  },
+  {
+    "id": "forbes-leadership",
+    "name": "Forbes · Leadership",
+    "homepage": "https://www.forbes.com/leadership/",
+    "url": "https://www.forbes.com/leadership/feed/"
+  },
+  {
+    "id": "fast-company-headlines",
+    "name": "Fast Company · Headlines",
+    "homepage": "https://www.fastcompany.com/",
+    "url": "http://feeds.feedburner.com/fastcompany/headlines"
+  },
+  {
+    "id": "towards-data-science",
+    "name": "Towards Data Science",
+    "homepage": "https://towardsdatascience.com/",
+    "url": "https://towardsdatascience.com/feed/"
+  },
+  {
+    "id": "wired-ai",
+    "name": "WIRED AI",
+    "homepage": "https://www.wired.com/tag/artificial-intelligence/",
+    "url": "https://www.wired.com/feed/tag/ai/latest/rss"
+  }
 ]

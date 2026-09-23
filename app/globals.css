@@ -617,6 +617,17 @@ body { background: var(--prototype-bg); color: var(--prototype-ink); }
 .toast-error { position: fixed; right: 18px; bottom: 82px; z-index: 60; padding: 10px 13px; border-radius: 3px; color: #93000a; background: #ffdad6; box-shadow: 0 4px 14px rgba(2,29,53,.1); font: 600 11px var(--body); }
 .sync-toast { position: fixed; right: 18px; bottom: 82px; z-index: 60; display: flex; align-items: center; gap: 6px; padding: 10px 13px; border-radius: 3px; color: #356b53; background: #e2f2e9; box-shadow: 0 4px 14px rgba(2,29,53,.1); font: 600 11px var(--body); }
 .sync-toast.error { color: #93000a; background: #ffdad6; }
+.triage-telemetry { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.triage-telemetry > div, .jev-score-panel > div { min-width: 0; padding: 14px; border: 1px solid var(--line); background: #fff; }
+.triage-telemetry span, .triage-telemetry small, .jev-score-panel span, .jev-score-panel small { display: block; color: var(--muted); font-size: 9px; }
+.triage-telemetry strong { display: block; margin: 5px 0 3px; color: var(--ink); font-family: var(--display); font-size: 21px; }
+.triage-telemetry small { line-height: 1.35; }
+.jev-score-panel { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 10px; margin: 0 0 16px; }
+.jev-score-panel strong { display: block; margin-top: 4px; color: var(--ink); font-family: var(--display); font-size: 20px; }
+.jev-score-panel > div:first-child { border-left: 3px solid var(--orange); }.jev-score-panel > div:first-child strong { font-size: 24px; }.jev-score-panel small { margin-top: 3px; }
+.triage-sort-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 10px; }.triage-sort-row label { display: flex; min-width: 145px; flex-direction: column; gap: 4px; }.triage-sort-row label span { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }.triage-sort-row select { min-height: 32px; padding: 6px 8px; border: 1px solid var(--line); color: var(--ink); background: #fff; font-size: 11px; }
+@media (max-width: 900px) { .triage-telemetry { grid-template-columns: repeat(2, minmax(0, 1fr)); }.jev-score-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }.jev-score-panel > div:first-child { grid-column: 1 / -1; } }
+@media (max-width: 600px) { .triage-telemetry { grid-template-columns: 1fr; }.jev-score-panel { grid-template-columns: 1fr 1fr; } }
 
 @media (max-width: 1300px) {
   .edition-context, .autosave-status, .studio-user-copy { display: none; }

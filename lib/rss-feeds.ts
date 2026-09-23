@@ -3,7 +3,7 @@ import { getTrendRadarSettings } from "@/lib/trendradar-settings.server";
 import type { TrendRadarSource } from "@/lib/trendradar-settings";
 
 type RssSource = TrendRadarSource;
-type FeedSyncSummary = { added: number; successful: string[]; failed: string[]; attempted: number };
+type FeedSyncSummary = { fetched: number; added: number; retained: number; purged: number; successful: string[]; failed: string[]; attempted: number };
 
 function decodeXml(value: string) {
   return value
@@ -93,5 +93,5 @@ export async function syncConfiguredRssFeeds(baseFeed: TrendRadarFeed) {
     },
     items,
   });
-  return { feed, summary: { added: dedupedLive.length, successful, failed, attempted: rssSources.length } satisfies FeedSyncSummary };
+  return { feed, summary: { fetched: liveItems.length, added: dedupedLive.length, retained: feed.items.length, purged: Math.max(0, items.length - feed.items.length), successful, failed, attempted: rssSources.length } satisfies FeedSyncSummary };
 }
