@@ -100,7 +100,7 @@ export function CommandCenter({ trendRadar }: { trendRadar: TrendRadarFeed }) {
   const [aiError, setAiError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  const [showAllStories, setShowAllStories] = useState(false);
+  const [showAllStories, setShowAllStories] = useState(true);
   const [jevScores, setJevScores] = useState<Record<string, JevTriageScore>>({});
   const [jevStatus, setJevStatus] = useState<"loading" | "ready" | "fallback" | "error">("loading");
   const [jevModel, setJevModel] = useState("jev-latest");

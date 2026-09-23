@@ -65,8 +65,10 @@ export function buildInfographicPrompt(options: WeeklyBrief | InfographicArtwork
     `Deterministic seed reference: ${config.seed ?? "auto"}.`,
     config.referenceImage ? "A consultant supplied a visual reference image. Match its composition, palette, and information hierarchy while keeping the approved story text and Capco branding." : "No external reference image was supplied; follow the selected template and layout.",
     `Capco style template: ${CAPCO_INFOGRAPHIC_STYLE_TEMPLATE}`,
-    `Render text inside the infographic: headline \"${textPlan.headline ?? title}\"; summary \"${textPlan.summary ?? subtitle}\"; perspective label and copy \"${textPlan.perspective ?? "Capco perspective"}\"; section labels ${textPlan.sections?.join(", ") ?? sections}. Use large, high-contrast editorial typography and keep all text legible. Do not replace the selected story with invented facts.`,
-    config.includeText === false ? "Text rendering may be minimal because the caller requested an image-only variant." : "This is not a backdrop-only request: the output must visibly communicate the selected story with headline, labeled sections, summary, and source-aware footer text.",
+    config.includeText === false
+      ? "Do not render any readable text, labels, numbers, letters, logos, captions, or typography in the image. Create a clean image-only visual composition; all editorial copy will be handled separately later."
+      : `Render text inside the infographic: headline \"${textPlan.headline ?? title}\"; summary \"${textPlan.summary ?? subtitle}\"; perspective label and copy \"${textPlan.perspective ?? "Capco perspective"}\"; section labels ${textPlan.sections?.join(", ") ?? sections}. Use large, high-contrast editorial typography and keep all text legible. Do not replace the selected story with invented facts.`,
+    config.includeText === false ? "This is an image-only artwork pass, not a text-bearing infographic pass." : "This is not a backdrop-only request: the output must visibly communicate the selected story with headline, labeled sections, summary, and source-aware footer text.",
     "Avoid: neon rainbow gradients, generic futuristic cityscapes, glossy 3D blobs, stock photography, illegible microtype, rounded SaaS card grids, and decorative noise.",
   ].join("\n");
 }

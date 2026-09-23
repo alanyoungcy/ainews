@@ -289,16 +289,21 @@ async function scoreWithJev(item: TrendRadarItem, settings: JevSettings): Promis
 
 export async function rankWithJev(items: TrendRadarItem[], limit = 32) {
   const settings = getJevSettings();
-  const key = feedKey(items, settings);
+  const key = `${feedKey(items, settings)}:rank-all-v2`;
   const cached = readCache(key);
-  if (cached) return { scores: cached.scores, criteria: settings.criteria, dedupe: cached.dedupe ?? { uniqueItems: items, uniqueItemIds: items.map((item) => item.id), duplicateItemIds: [], duplicateGroups: [], duplicateCount: 0, model: "legacy-cache" }, cached: true, model: cached.scores[0]?.model ?? "jev-latest" };
+  if (cached && cached.scores.length >= (cached.dedupe?.uniqueItemIds.length ?? items.length)) return { scores: cached.scores, criteria: settings.criteria, dedupe: cached.dedupe ?? { uniqueItems: items, uniqueItemIds: items.map((item) => item.id), duplicateItemIds: [], duplicateGroups: [], duplicateCount: 0, model: "legacy-cache" }, cached: true, model: cached.scores[0]?.model ?? "jev-latest" };
   const dedupe = await deduplicateStories(items);
-  const candidates = [...dedupe.uniqueItems].sort((a, b) => fallbackScore(b, settings).composite - fallbackScore(a, settings).composite).slice(0, limit);
+  const candidates = [...dedupe.uniqueItems].sort((a, b) => fallbackScore(b, settings).composite - fallbackScore(a, settings).composite);
+  // Keep the external Jev workload bounded, but return a score for every
+  // retained unique story so the UI can show and select the full feed.
+  const jevCandidates = candidates.slice(0, Math.max(0, limit));
   const scores: JevTriageScore[] = [];
-  for (let index = 0; index < candidates.length; index += 6) {
-    const batch = await Promise.all(candidates.slice(index, index + 6).map((item) => scoreWithJev(item, settings)));
+  for (let index = 0; index < jevCandidates.length; index += 6) {
+    const batch = await Promise.all(jevCandidates.slice(index, index + 6).map((item) => scoreWithJev(item, settings)));
     scores.push(...batch);
   }
+  const jevIds = new Set(scores.map((score) => score.itemId));
+  candidates.filter((item) => !jevIds.has(item.id)).forEach((item) => scores.push(fallbackScore(item, settings)));
   scores.sort((a, b) => compareScores(a, b, settings.criteria));
   writeCache({ key, generatedAt: new Date().toISOString(), scores, dedupe });
   return { scores, criteria: settings.criteria, dedupe, cached: false, model: scores[0]?.model ?? "local-triage-fallback" };
