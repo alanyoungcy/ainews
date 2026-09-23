@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       prompt: body.prompt ?? "",
       seed: body.seed ?? "auto",
       referenceImage: body.referenceImage ?? null,
-      includeText: body.includeText === true,
+      includeText: body.includeText !== false,
       textPlan: body.textPlan ?? null,
     };
     const key = infographicMemoryKey(payload);
