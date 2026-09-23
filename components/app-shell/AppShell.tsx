@@ -34,6 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="studio-actions">
             <div className="edition-chip"><span>Edition:</span><strong>OPEN</strong><Icon name="chevron" size={14} /></div>
             <span className="autosave-status"><Icon name="refresh" size={13} /> Auto-saved</span>
+            <Link className="quick-export" href="/settings"><Icon name="settings" size={14} /> Settings</Link>
             <Link className="quick-export" href="/dispatch"><Icon name="download" size={14} /> Quick Export Brief</Link>
             <div className="studio-user"><span className="studio-user-copy"><strong>Alex Young</strong><small>Editorial lead</small></span><span className="studio-avatar">AY</span></div>
           </div>
