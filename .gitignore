@@ -7,10 +7,6 @@ node_modules/
 .env.*
 !.env.example
 coverage/
-data/trendradar/weekly-brief.json
-data/trendradar/infographic-memory.json
-data/trendradar/jev-triage.json
-data/trendradar/jev-settings.json
-data/trendradar/settings.json
-data/trendradar/editorial-handoff.json
+data/.DS_Store
+data/trendradar/*.json
 data/edition-status.json
