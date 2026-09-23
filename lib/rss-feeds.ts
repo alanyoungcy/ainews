@@ -1,7 +1,8 @@
-import rssSources from "@/config/english-rss.json";
 import { pruneTrendRadarFeed, type TrendRadarFeed, type TrendRadarItem } from "@/lib/trendradar";
+import { getTrendRadarSettings } from "@/lib/trendradar-settings.server";
+import type { TrendRadarSource } from "@/lib/trendradar-settings";
 
-type RssSource = (typeof rssSources)[number];
+type RssSource = TrendRadarSource;
 type FeedSyncSummary = { added: number; successful: string[]; failed: string[]; attempted: number };
 
 function decodeXml(value: string) {
@@ -63,6 +64,7 @@ async function fetchSource(source: RssSource) {
 
 export async function syncConfiguredRssFeeds(baseFeed: TrendRadarFeed) {
   baseFeed = pruneTrendRadarFeed(baseFeed);
+  const rssSources = getTrendRadarSettings().sources.filter((source) => source.enabled);
   const results = await Promise.allSettled(rssSources.map(async (source) => ({ source, items: await fetchSource(source) })));
   const successful: string[] = [];
   const failed: string[] = [];
