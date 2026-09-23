@@ -44,7 +44,6 @@ export default function DispatchPage() {
   const toggle = (label: string) => setChecked((current) => current.includes(label) ? current.filter((item) => item !== label) : [...current, label]);
 
   useEffect(() => { if (dispatched) void fetch("/api/edition-status", { method: "POST" }); }, [dispatched]);
-
   useEffect(() => {
     let cancelled = false;
     async function restore() {
@@ -74,25 +73,13 @@ export default function DispatchPage() {
 
       if (cancelled) return;
       const resolvedHandoff = remoteHandoff ?? localHandoff;
-      const resolvedArtwork = resolvedHandoff?.artworkUrl ?? localArtwork;
+      const resolvedArtwork = resolvedHandoff?.artworkUrl ?? (resolvedHandoff ? localArtwork : null);
       if (resolvedHandoff) setHandoff(resolvedHandoff);
       if (resolvedArtwork) {
         setArtworkUrl(resolvedArtwork);
         setArtworkState("ready");
       }
-
-      try {
-        const response = await fetch("/api/generate-art", { cache: "no-store" });
-        const result = response.ok ? await response.json() as { output?: string | null } : null;
-        if (result?.output && !resolvedArtwork) {
-          setArtworkUrl(result.output);
-          setArtworkState("ready");
-        } else if (!resolvedArtwork) {
-          setArtworkState("missing");
-        }
-      } catch {
-        if (!resolvedArtwork) setArtworkState("missing");
-      }
+      if (!resolvedArtwork) setArtworkState("missing");
     }
     void restore();
     return () => { cancelled = true; };
