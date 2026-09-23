@@ -34,6 +34,16 @@ function lockedStoriesForDispatch(handoff: DispatchHandoff) {
   return reviewStories;
 }
 
+function derivePerspectiveHeadline(perspective: string) {
+  const normalized = perspective.replace(/\s+/g, " ").trim();
+  const interpretation = normalized.match(/(?:advisory interpretation|capco (?:point of view|pov))\s*:\s*([^.!?]+)/i)?.[1]?.trim() ?? normalized.split(/[.!?]/)[0]?.trim() ?? "Capco perspective for this edition";
+  if (/cost|econom/i.test(normalized) && /pilot|control|baseline|govern/i.test(normalized)) return "Falling AI costs widen the case for controlled pilots";
+  if (/voice|spoken|speech/i.test(normalized) && /privacy|risk|workflow|human/i.test(normalized)) return "Voice-native AI needs workflow and risk controls before scale";
+  if (/govern|oversight|control|risk/i.test(normalized)) return "AI value depends on governance as much as capability";
+  const compact = interpretation.replace(/^(the|a|an)\s+/i, "");
+  return `${compact.charAt(0).toUpperCase()}${compact.slice(1)}`.slice(0, 110).replace(/[,:;\s]+$/, "");
+}
+
 export default function DispatchPage() {
   const [channel, setChannel] = useState<Channel>("Email");
   const [checked, setChecked] = useState<string[]>([]);
@@ -61,9 +71,9 @@ export default function DispatchPage() {
   const selectedStory = handoff?.selectedStory;
   const dispatchStories = useMemo(() => handoff ? lockedStoriesForDispatch(handoff) : [], [handoff]);
   const noVisual = handoff?.status === "confirmed-no-visual" && !artworkUrl;
-  const editionTitle = selectedStory?.title ?? (noVisual ? "No infographic requested for this edition" : handoff?.infographic?.title ?? "Awaiting approved edition");
-  const editionSummary = selectedStory?.fact ?? (noVisual ? `${dispatchStories.length} Gate 1 approved stories remain locked for dispatch without a visual asset.` : handoff?.infographic?.subtitle ?? "The approved Stage 02 summary will appear here.");
   const editionPerspective = selectedStory?.capcoImplication ?? handoff?.brief?.brief.capcoPerspective ?? "The approved Capco PoV will appear here.";
+  const editionTitle = selectedStory?.title ?? (noVisual ? derivePerspectiveHeadline(editionPerspective) : handoff?.infographic?.title ?? "Awaiting approved edition");
+  const editionSummary = selectedStory?.fact ?? (noVisual ? `${dispatchStories.length} Gate 1 approved stories remain locked for dispatch without a visual asset.` : handoff?.infographic?.subtitle ?? "The approved Stage 02 summary will appear here.");
   const contextBlocks = useMemo(() => handoff ? dispatchStories.map((story, index) => ({ label: `S${String(index + 1).padStart(2, "0")}`, title: story.title, body: <><span>Source: {story.source}</span><span>Reported fact: {story.fact}</span><span>Capco PoV: {story.capcoImplication}</span>{story.url && <a href={story.url} target="_blank" rel="noreferrer">Open article ↗</a>}</> })) : [], [dispatchStories, handoff]);
 
   function toggle(label: string) { setChecked((current) => current.includes(label) ? current.filter((item) => item !== label) : [...current, label]); }
