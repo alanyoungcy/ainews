@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/Icon";
 import type { WeeklyBriefResult, WeeklyStory } from "@/lib/weekly-intelligence";
 
 const checks = [
-  ["Checksum validation", "Story bundle and final visual are linked"],
+  ["Checksum validation", "Story bundle and visual decision are linked"],
   ["Legal disclaimer", "Capco advisory disclaimer is present"],
   ["Recipient list", "Configured distribution channels verified"],
   ["Non-public data scan", "No restricted client data detected"],
