@@ -46,7 +46,41 @@ export default function EditionPage() {
   const active = reviewStories.find((story) => story.id === selected) ?? reviewStories[0];
   const allApproved = reviewStories.length > 0 && approved.length === reviewStories.length;
   function approveStory() { if (!active) return; setApproved((current) => current.includes(active.id) ? current : [...current, active.id]); window.localStorage.setItem("capco-confirmed-story", active.id); }
-  function lockGate() { if (active) window.localStorage.setItem("capco-confirmed-story", active.id); setLocked(true); }
+  function persistStage02Handoff() {
+    if (!aiBrief || !active) return;
+    const handoff = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      brief: aiBrief,
+      selectedStoryId: active.id,
+      approvedStoryIds: approved,
+      selectedStory: active,
+      tone,
+      notes,
+      narrative: aiBrief.brief.thesis,
+      infographic: aiBrief.brief.infographic,
+    };
+    try {
+      window.localStorage.setItem("capco-stage02-handoff", JSON.stringify(handoff));
+      window.localStorage.setItem("capco-confirmed-story", active.id);
+    } catch {
+      // The server handoff below remains the durable copy when browser storage is unavailable.
+    }
+    void fetch("/api/editorial-handoff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage: "stage02", handoff }),
+    }).catch(() => undefined);
+  }
+  function lockGate() { persistStage02Handoff(); setLocked(true); }
+
+  useEffect(() => {
+    if (locked) persistStage02Handoff();
+  }, [locked, aiBrief, active, approved, tone, notes]);
+
+  useEffect(() => {
+    if (advancing) persistStage02Handoff();
+  }, [advancing]);
 
   useEffect(() => {
     const validIds = new Set(reviewStories.map((story) => story.id));

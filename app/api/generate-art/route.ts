@@ -15,7 +15,17 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const payload = { brief: body.brief ?? null, story: body.story ?? null, archetype: body.archetype ?? "3-Tier Architecture Framework", prompt: body.prompt ?? "", seed: body.seed ?? "auto" };
+    const payload = {
+      brief: body.brief ?? null,
+      story: body.story ?? null,
+      archetype: body.archetype ?? "3-Tier Architecture Framework",
+      layout: body.layout ?? body.archetype ?? "3-Tier Architecture Framework",
+      visualStyle: body.visualStyle ?? "Editorial data grid",
+      prompt: body.prompt ?? "",
+      seed: body.seed ?? "auto",
+      includeText: body.includeText !== false,
+      textPlan: body.textPlan ?? null,
+    };
     const key = infographicMemoryKey(payload);
     const cached = readInfographicMemory(key);
     if (cached) return NextResponse.json({ ...cached, cached: true, statusMessage: "Reused the saved visual memory for this confirmed story and visual spec." });
