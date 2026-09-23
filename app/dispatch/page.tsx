@@ -13,7 +13,8 @@ const checks = [
 ] as const;
 type Channel = "Mobile" | "Email" | "HTML / Web";
 type Overlay = { id: string; label: string; value: string; x: number; y: number; width: number; kind: string };
-type DispatchHandoff = { version: number; savedAt: string; brief: WeeklyBriefResult | null; selectedStory: WeeklyStory & { id: string }; stories?: Array<WeeklyStory & { id: string }>; visualStyle: { id: string; name: string }; layout: { id: string; name: string }; infographic: WeeklyBriefResult["brief"]["infographic"] | null; metrics: string[]; overlays?: Overlay[]; artworkUrl: string | null; referenceImage?: string | null; watermark: boolean; legalScrim: boolean; status?: string };
+type Stage01Source = { id: string; title?: string; source?: string; url?: string | null };
+type DispatchHandoff = { version: number; savedAt: string; brief: WeeklyBriefResult | null; selectedStory: WeeklyStory & { id: string }; stories?: Array<WeeklyStory & { id: string }>; stage02?: { stage01?: { selectedStoryIds?: string[]; selectedStories?: Stage01Source[] } | null } | null; visualStyle: { id: string; name: string }; layout: { id: string; name: string }; infographic: WeeklyBriefResult["brief"]["infographic"] | null; metrics: string[]; overlays?: Overlay[]; artworkUrl: string | null; referenceImage?: string | null; watermark: boolean; legalScrim: boolean; status?: string };
 
 function readLocalHandoff() { try { const raw = window.localStorage.getItem("capco-stage03-handoff"); return raw ? JSON.parse(raw) as DispatchHandoff : null; } catch { return null; } }
 
@@ -55,7 +56,25 @@ export default function DispatchPage() {
     const blob = new Blob([body], { type: kind === "json" ? "application/json" : "text/html" });
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = kind === "json" ? "capco-edition-bundle.json" : "capco-edition.html"; link.click(); URL.revokeObjectURL(link.href); setMessage("Edition bundle downloaded.");
   }
-  async function dispatchBundle() { if (!allChecked) return; setDispatched(true); setMessage("Dispatch authorized and queued for the configured channels."); await fetch("/api/edition-status", { method: "POST" }).catch(() => undefined); }
+  async function dispatchBundle() {
+    if (!allChecked || !handoff) return;
+    const stage01 = handoff.stage02?.stage01;
+    const selectedSourceIds = stage01?.selectedStoryIds ?? [];
+    const sourceStories = stage01?.selectedStories ?? [];
+    const stories = selectedSourceIds.map((sourceId) => {
+      const match = sourceStories.find((story) => story.id === sourceId || story.id === `feed-${sourceId}`);
+      return {
+        id: sourceId,
+        title: match?.title ?? (sourceId === handoff.selectedStory.id ? handoff.selectedStory.title : handoff.selectedStory.title),
+        source: match?.source ?? handoff.selectedStory.source,
+        url: match?.url ?? (sourceId === handoff.selectedStory.id ? handoff.selectedStory.url : handoff.selectedStory.url),
+      };
+    });
+    if (!stories.length) stories.push({ id: handoff.selectedStory.id, title: handoff.selectedStory.title, source: handoff.selectedStory.source, url: handoff.selectedStory.url });
+    setDispatched(true);
+    setMessage("Dispatch authorized and queued for the configured channels. Source stories are now flagged as dispatched.");
+    await fetch("/api/edition-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stories }) }).catch(() => undefined);
+  }
 
   return <AppShell><div className="stage-page dispatch-stage">
     <div className="stage-strip"><span className="stage-label">Editorial pipeline</span><span>/</span><strong>Stage 04: Preview &amp; publishing</strong><span>/</span><span><i className="live-dot" /> HITL Gate 3</span><span className="stage-ref">{handoff ? "STAGE 03 BUNDLE LINKED" : "AWAITING STAGE 03"}</span></div>

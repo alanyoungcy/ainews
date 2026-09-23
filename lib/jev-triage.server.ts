@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { TrendRadarItem } from "@/lib/trendradar";
+import { getJevSettings } from "@/lib/jev-settings.server";
+import { type JevCriterion, type JevSettings } from "@/lib/jev-settings";
 
 export type JevDimension = {
   score: number;
@@ -14,6 +16,7 @@ export type JevTriageScore = {
   aiRelevance: JevDimension;
   hypeTrend: JevDimension;
   capcoImpact: JevDimension;
+  criteria: Record<string, JevDimension>;
   composite: number;
   model: string;
 };
@@ -32,7 +35,6 @@ type JevResponse = { model?: string; answers?: Record<string, ScoreAnswer> };
 type CacheFile = { key: string; generatedAt: string; scores: JevTriageScore[]; dedupe?: JevDedupeResult };
 
 const CAPCO_CONTEXT = "Capco is a technology consultancy specialising in financial services and energy. Relevant capabilities include banking and payments, capital markets, wealth and asset management, data office, technology, AI, operating-model transformation, risk, resilience, and work in regulated and scrutinised sectors. Prioritise practical client impact over generic technology novelty.";
-const WEIGHTS = { recency: 0.45, aiRelevance: 0.25, hypeTrend: 0.15, capcoImpact: 0.15 } as const;
 const AI_TERMS = /\b(ai|artificial intelligence|agentic|agent|agents|model|models|llm|inference|gpu|robot|automation|openai|anthropic|generative|synthetic|nvidia|machine learning|neural)\b/i;
 const CAPCO_TERMS = /\b(bank|banking|wealth|asset management|capital markets|payments|insurance|risk|regulat|compliance|cyber|resilien|data office|technology|transformation|operations|client experience|financial services)\b/i;
 const TREND_TERMS = /\b(breakthrough|launch|launched|record|surge|adoption|funding|investment|partnership|acquisition|trend|viral|benchmark|first|new|latest|update)\b/i;
@@ -51,8 +53,9 @@ function hashKey(value: string) {
   return (hash >>> 0).toString(16);
 }
 
-function feedKey(items: TrendRadarItem[]) {
-  return hashKey(items.map((item) => [item.id, item.publishedAt, item.lastSeenAt, item.rank].join("|")).join("\n"));
+function feedKey(items: TrendRadarItem[], settings: JevSettings) {
+  const criteriaKey = settings.criteria.map((criterion) => [criterion.id, criterion.weight, criterion.enabled, criterion.instruction].join(":")).join("|");
+  return hashKey(`${criteriaKey}\n${items.map((item) => [item.id, item.publishedAt, item.lastSeenAt, item.rank].join("|")).join("\n")}`);
 }
 
 function normalizeUrl(value: string | null) {
@@ -202,7 +205,7 @@ function deterministicDimension(score: number): JevDimension {
   return { score: Math.max(0, Math.min(100, Math.round(score))), confidence: 0.35, source: "fallback" };
 }
 
-function fallbackScore(item: TrendRadarItem): JevTriageScore {
+function fallbackDimensions(item: TrendRadarItem): Record<string, JevDimension> {
   const text = `${item.title} ${item.summary ?? ""}`;
   const published = item.publishedAt ? new Date(item.publishedAt).getTime() : 0;
   const ageHours = published ? Math.max(0, (Date.now() - published) / 3_600_000) : 96;
@@ -210,8 +213,34 @@ function fallbackScore(item: TrendRadarItem): JevTriageScore {
   const ai = AI_TERMS.test(text) ? 92 : 18;
   const hype = Math.min(100, (item.rank ? Math.max(0, 100 - item.rank * 2) : 35) + (TREND_TERMS.test(text) ? 28 : 0));
   const impact = CAPCO_TERMS.test(text) ? 88 : 28;
-  const dimensions = { recency: deterministicDimension(recency), aiRelevance: deterministicDimension(ai), hypeTrend: deterministicDimension(hype), capcoImpact: deterministicDimension(impact) };
-  return { itemId: item.id, ...dimensions, composite: Math.round(recency * WEIGHTS.recency + ai * WEIGHTS.aiRelevance + hype * WEIGHTS.hypeTrend + impact * WEIGHTS.capcoImpact), model: "local-triage-fallback" };
+  return { recency: deterministicDimension(recency), aiRelevance: deterministicDimension(ai), hypeTrend: deterministicDimension(hype), capcoImpact: deterministicDimension(impact) };
+}
+
+function weightedComposite(dimensions: Record<string, JevDimension>, criteria: JevCriterion[]) {
+  const enabled = criteria.filter((criterion) => criterion.enabled && dimensions[criterion.id]);
+  const totalWeight = enabled.reduce((sum, criterion) => sum + Math.max(0, criterion.weight), 0);
+  if (!totalWeight) return 0;
+  return Math.round(enabled.reduce((sum, criterion) => sum + dimensions[criterion.id].score * Math.max(0, criterion.weight), 0) / totalWeight);
+}
+
+function compareScores(left: JevTriageScore, right: JevTriageScore, criteria: JevCriterion[]) {
+  if (right.composite !== left.composite) return right.composite - left.composite;
+  for (const criterion of criteria) {
+    if (!criterion.enabled) continue;
+    const difference = (right.criteria[criterion.id]?.score ?? 0) - (left.criteria[criterion.id]?.score ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+function fallbackScore(item: TrendRadarItem, settings: JevSettings): JevTriageScore {
+  const known = fallbackDimensions(item);
+  const dimensions = Object.fromEntries(settings.criteria.map((criterion) => [criterion.id, known[criterion.id] ?? deterministicDimension(50)]));
+  const recency = dimensions.recency ?? deterministicDimension(50);
+  const aiRelevance = dimensions.aiRelevance ?? deterministicDimension(50);
+  const hypeTrend = dimensions.hypeTrend ?? deterministicDimension(50);
+  const capcoImpact = dimensions.capcoImpact ?? deterministicDimension(50);
+  return { itemId: item.id, recency, aiRelevance, hypeTrend, capcoImpact, criteria: dimensions, composite: weightedComposite(dimensions, settings.criteria), model: "local-triage-fallback" };
 }
 
 function scoreTo100(answer: ScoreAnswer | undefined, fallback: JevDimension, levels = 5): JevDimension {
@@ -220,8 +249,8 @@ function scoreTo100(answer: ScoreAnswer | undefined, fallback: JevDimension, lev
   return { score: Math.round(Math.max(0, Math.min(100, raw / (levels - 1) * 100)),), confidence: Number(answer?.confidence ?? 0), source: "jev" };
 }
 
-async function scoreWithJev(item: TrendRadarItem): Promise<JevTriageScore> {
-  const fallback = fallbackScore(item);
+async function scoreWithJev(item: TrendRadarItem, settings: JevSettings): Promise<JevTriageScore> {
+  const fallback = fallbackScore(item, settings);
   const apiKey = process.env.TYPESAFE_API_KEY;
   if (!apiKey) return fallback;
   const base = (process.env.TYPESAFE_API_BASE ?? "https://api.typesafe.ai/v1").replace(/\/$/, "");
@@ -237,40 +266,40 @@ async function scoreWithJev(item: TrendRadarItem): Promise<JevTriageScore> {
       body: JSON.stringify({
         model: "jev-latest",
         state,
-        questions: {
-          recency: { type: "score", instructions: "How current is this story for a weekly editorial triage? Use the supplied publication and observation timestamps; a story published within 24 hours is highest, then 2-3 days, 4-7 days, 8-30 days, or older/unknown.", criteria: ["Older than 30 days or no usable date", "8–30 days old", "4–7 days old", "2–3 days old", "Published or observed within the last 24 hours"] },
-          aiRelevance: { type: "score", instructions: "How directly is this story about AI or an AI-enabled capability? Do not reward a generic technology story unless AI is central.", criteria: ["No meaningful AI connection", "AI is incidental or speculative", "AI is one material part of the story", "AI is central and clearly evidenced", "AI is the primary subject and directly useful to an AI news edition"] },
-          hypeTrend: { type: "score", instructions: "How strong is the current hype or trend signal? Consider explicit momentum, launches, adoption, funding, benchmarks, partnerships, ranking, and recurrence, while discounting empty hype.", criteria: ["No visible momentum", "Weak or isolated signal", "Some evidence of momentum", "Strong current trend signal", "Exceptional momentum with multiple concrete indicators"] },
-          capcoImpact: { type: "score", instructions: "How directly could this matter to Capco clients and propositions? Use Capco’s financial-services, banking and payments, capital-markets, wealth, data, technology, AI, operating-model, risk, resilience, and regulated-sector context. Reward practical client impact.", criteria: ["No meaningful Capco or client relevance", "Indirect relevance to technology or general business", "Relevant to one financial-services or transformation concern", "Directly relevant to a Capco client decision or regulated operating model", "Immediate, material impact across a priority Capco financial-services domain"] },
-        },
+        questions: Object.fromEntries(settings.criteria.filter((criterion) => criterion.enabled).map((criterion) => [criterion.id, {
+          type: "score",
+          instructions: criterion.instruction,
+          criteria: ["No meaningful evidence", "Weak or incidental evidence", "Some material evidence", "Strong and clearly evidenced", "Exceptional and directly useful for this edition"],
+        }])),
       }),
       signal: AbortSignal.timeout(Number(process.env.TYPESAFE_TIMEOUT_MS ?? 20000)),
     });
     if (!response.ok) return fallback;
     const payload = await response.json() as JevResponse;
-    const recency = scoreTo100(payload.answers?.recency, fallback.recency);
-    const aiRelevance = scoreTo100(payload.answers?.aiRelevance, fallback.aiRelevance);
-    const hypeTrend = scoreTo100(payload.answers?.hypeTrend, fallback.hypeTrend);
-    const capcoImpact = scoreTo100(payload.answers?.capcoImpact, fallback.capcoImpact);
-    const composite = Math.round(recency.score * WEIGHTS.recency + aiRelevance.score * WEIGHTS.aiRelevance + hypeTrend.score * WEIGHTS.hypeTrend + capcoImpact.score * WEIGHTS.capcoImpact);
-    return { itemId: item.id, recency, aiRelevance, hypeTrend, capcoImpact, composite, model: payload.model ?? "jev-latest" };
+    const dimensions = Object.fromEntries(settings.criteria.map((criterion) => [criterion.id, scoreTo100(payload.answers?.[criterion.id], fallback.criteria[criterion.id] ?? deterministicDimension(50))]));
+    const recency = dimensions.recency ?? fallback.recency;
+    const aiRelevance = dimensions.aiRelevance ?? fallback.aiRelevance;
+    const hypeTrend = dimensions.hypeTrend ?? fallback.hypeTrend;
+    const capcoImpact = dimensions.capcoImpact ?? fallback.capcoImpact;
+    return { itemId: item.id, recency, aiRelevance, hypeTrend, capcoImpact, criteria: dimensions, composite: weightedComposite(dimensions, settings.criteria), model: payload.model ?? "jev-latest" };
   } catch {
     return fallback;
   }
 }
 
 export async function rankWithJev(items: TrendRadarItem[], limit = 32) {
-  const key = feedKey(items);
+  const settings = getJevSettings();
+  const key = feedKey(items, settings);
   const cached = readCache(key);
-  if (cached) return { scores: cached.scores, dedupe: cached.dedupe ?? { uniqueItems: items, uniqueItemIds: items.map((item) => item.id), duplicateItemIds: [], duplicateGroups: [], duplicateCount: 0, model: "legacy-cache" }, cached: true, model: cached.scores[0]?.model ?? "jev-latest" };
+  if (cached) return { scores: cached.scores, criteria: settings.criteria, dedupe: cached.dedupe ?? { uniqueItems: items, uniqueItemIds: items.map((item) => item.id), duplicateItemIds: [], duplicateGroups: [], duplicateCount: 0, model: "legacy-cache" }, cached: true, model: cached.scores[0]?.model ?? "jev-latest" };
   const dedupe = await deduplicateStories(items);
-  const candidates = [...dedupe.uniqueItems].sort((a, b) => fallbackScore(b).composite - fallbackScore(a).composite).slice(0, limit);
+  const candidates = [...dedupe.uniqueItems].sort((a, b) => fallbackScore(b, settings).composite - fallbackScore(a, settings).composite).slice(0, limit);
   const scores: JevTriageScore[] = [];
   for (let index = 0; index < candidates.length; index += 6) {
-    const batch = await Promise.all(candidates.slice(index, index + 6).map(scoreWithJev));
+    const batch = await Promise.all(candidates.slice(index, index + 6).map((item) => scoreWithJev(item, settings)));
     scores.push(...batch);
   }
-  scores.sort((a, b) => b.composite - a.composite);
+  scores.sort((a, b) => compareScores(a, b, settings.criteria));
   writeCache({ key, generatedAt: new Date().toISOString(), scores, dedupe });
-  return { scores, dedupe, cached: false, model: scores[0]?.model ?? "local-triage-fallback" };
+  return { scores, criteria: settings.criteria, dedupe, cached: false, model: scores[0]?.model ?? "local-triage-fallback" };
 }

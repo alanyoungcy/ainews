@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTrendRadarFeed } from "@/lib/trendradar";
+import { getTrendRadarFeed, persistTrendRadarFeed, pruneTrendRadarFeed } from "@/lib/trendradar";
 import { syncConfiguredRssFeeds } from "@/lib/rss-feeds";
 
 export async function GET() {
@@ -7,6 +7,8 @@ export async function GET() {
 }
 
 export async function POST() {
-  const result = await syncConfiguredRssFeeds(getTrendRadarFeed());
-  return NextResponse.json({ ...result.feed, sync: result.summary });
+  const result = await syncConfiguredRssFeeds(pruneTrendRadarFeed(getTrendRadarFeed()));
+  const feed = pruneTrendRadarFeed(result.feed);
+  persistTrendRadarFeed(feed);
+  return NextResponse.json({ ...feed, sync: result.summary });
 }

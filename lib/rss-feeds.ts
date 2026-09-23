@@ -1,5 +1,5 @@
 import rssSources from "@/config/english-rss.json";
-import type { TrendRadarFeed, TrendRadarItem } from "@/lib/trendradar";
+import { pruneTrendRadarFeed, type TrendRadarFeed, type TrendRadarItem } from "@/lib/trendradar";
 
 type RssSource = (typeof rssSources)[number];
 type FeedSyncSummary = { added: number; successful: string[]; failed: string[]; attempted: number };
@@ -62,6 +62,7 @@ async function fetchSource(source: RssSource) {
 }
 
 export async function syncConfiguredRssFeeds(baseFeed: TrendRadarFeed) {
+  baseFeed = pruneTrendRadarFeed(baseFeed);
   const results = await Promise.allSettled(rssSources.map(async (source) => ({ source, items: await fetchSource(source) })));
   const successful: string[] = [];
   const failed: string[] = [];
@@ -72,11 +73,13 @@ export async function syncConfiguredRssFeeds(baseFeed: TrendRadarFeed) {
     else failed.push(`${source.name}: ${result.reason instanceof Error ? result.reason.message : "unavailable"}`);
   });
 
-  const existingUrls = new Set(baseFeed.items.map((item) => item.url).filter(Boolean));
+  // Configured RSS sources are replaced with their live snapshot below, so only
+  // compare new items against non-configured TrendRadar records.
+  const existingUrls = new Set(baseFeed.items.filter((item) => item.kind !== "rss" || !rssSources.some((source) => source.id === item.sourceId)).map((item) => item.url).filter(Boolean));
   const dedupedLive = liveItems.filter((item) => !existingUrls.has(item.url));
   const items = [...baseFeed.items.filter((item) => item.kind !== "rss" || !rssSources.some((source) => source.id === item.sourceId)), ...dedupedLive];
   const rssItems = items.filter((item) => item.kind === "rss");
-  const feed: TrendRadarFeed = {
+  const feed: TrendRadarFeed = pruneTrendRadarFeed({
     ...baseFeed,
     source: {
       ...baseFeed.source,
@@ -87,6 +90,6 @@ export async function syncConfiguredRssFeeds(baseFeed: TrendRadarFeed) {
       syncedAt: new Date().toISOString(),
     },
     items,
-  };
+  });
   return { feed, summary: { added: dedupedLive.length, successful, failed, attempted: rssSources.length } satisfies FeedSyncSummary };
 }
