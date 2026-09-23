@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 function isStage(value: unknown): value is EditorialHandoffStage {
-  return value === "stage02" || value === "stage03";
+  return value === "stage01" || value === "stage02" || value === "stage03";
 }
 
 export async function GET(request: Request) {
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as { stage?: unknown; handoff?: unknown };
     if (!isStage(body.stage) || !body.handoff || typeof body.handoff !== "object") {
-      return NextResponse.json({ message: "A stage02 or stage03 handoff is required." }, { status: 400 });
+      return NextResponse.json({ message: "A stage01, stage02, or stage03 handoff is required." }, { status: 400 });
     }
     writeEditorialHandoff(body.stage, body.handoff);
     return NextResponse.json({ ok: true, stage: body.stage, handoff: body.handoff }, {

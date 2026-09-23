@@ -18,15 +18,25 @@ export type JevTriageScore = {
   model: string;
 };
 
+export type JevDedupeResult = {
+  uniqueItems: TrendRadarItem[];
+  uniqueItemIds: string[];
+  duplicateItemIds: string[];
+  duplicateGroups: string[][];
+  duplicateCount: number;
+  model: string;
+};
+
 type ScoreAnswer = { score?: number; confidence?: number };
 type JevResponse = { model?: string; answers?: Record<string, ScoreAnswer> };
-type CacheFile = { key: string; generatedAt: string; scores: JevTriageScore[] };
+type CacheFile = { key: string; generatedAt: string; scores: JevTriageScore[]; dedupe?: JevDedupeResult };
 
 const CAPCO_CONTEXT = "Capco is a technology consultancy specialising in financial services and energy. Relevant capabilities include banking and payments, capital markets, wealth and asset management, data office, technology, AI, operating-model transformation, risk, resilience, and work in regulated and scrutinised sectors. Prioritise practical client impact over generic technology novelty.";
 const WEIGHTS = { recency: 0.45, aiRelevance: 0.25, hypeTrend: 0.15, capcoImpact: 0.15 } as const;
 const AI_TERMS = /\b(ai|artificial intelligence|agentic|agent|agents|model|models|llm|inference|gpu|robot|automation|openai|anthropic|generative|synthetic|nvidia|machine learning|neural)\b/i;
 const CAPCO_TERMS = /\b(bank|banking|wealth|asset management|capital markets|payments|insurance|risk|regulat|compliance|cyber|resilien|data office|technology|transformation|operations|client experience|financial services)\b/i;
 const TREND_TERMS = /\b(breakthrough|launch|launched|record|surge|adoption|funding|investment|partnership|acquisition|trend|viral|benchmark|first|new|latest|update)\b/i;
+const COMMON_WORDS = new Set(["about", "after", "and", "from", "into", "news", "over", "that", "the", "this", "with"]);
 
 function cachePath() {
   return path.join(process.cwd(), "data", "trendradar", "jev-triage.json");
@@ -43,6 +53,130 @@ function hashKey(value: string) {
 
 function feedKey(items: TrendRadarItem[]) {
   return hashKey(items.map((item) => [item.id, item.publishedAt, item.lastSeenAt, item.rank].join("|")).join("\n"));
+}
+
+function normalizeUrl(value: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref", "output"].forEach((key) => url.searchParams.delete(key));
+    return url.toString().replace(/\/$/, "").toLowerCase();
+  } catch {
+    return value.trim().toLowerCase().replace(/\/$/, "");
+  }
+}
+
+function storyText(item: TrendRadarItem) {
+  return `${item.title} ${item.summary ?? ""}`.toLowerCase();
+}
+
+function storyTokens(item: TrendRadarItem) {
+  return new Set(storyText(item).replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((token) => token.length > 2 && !COMMON_WORDS.has(token)));
+}
+
+function tokenSimilarity(a: TrendRadarItem, b: TrendRadarItem) {
+  const left = storyTokens(a);
+  const right = storyTokens(b);
+  if (!left.size || !right.size) return 0;
+  const intersection = [...left].filter((token) => right.has(token)).length;
+  return intersection / (left.size + right.size - intersection);
+}
+
+function publishedTime(item: TrendRadarItem) {
+  const value = item.publishedAt ? Date.parse(item.publishedAt) : 0;
+  return Number.isFinite(value) ? value : 0;
+}
+
+function canonicalStory(items: TrendRadarItem[]) {
+  return [...items].sort((a, b) => {
+    const rankA = a.rank ?? 9999;
+    const rankB = b.rank ?? 9999;
+    return (a.kind === "hotlist" ? -1 : 0) - (b.kind === "hotlist" ? -1 : 0) || rankA - rankB || publishedTime(b) - publishedTime(a) || (b.summary?.length ?? 0) - (a.summary?.length ?? 0);
+  })[0];
+}
+
+function fallbackDuplicate(a: TrendRadarItem, b: TrendRadarItem) {
+  const urlA = normalizeUrl(a.url);
+  const urlB = normalizeUrl(b.url);
+  if (urlA && urlB && urlA === urlB) return true;
+  const similarity = tokenSimilarity(a, b);
+  return similarity >= 0.78 || (similarity >= 0.62 && a.sourceId === b.sourceId);
+}
+
+async function askJevForDuplicates(pairs: Array<[TrendRadarItem, TrendRadarItem]>) {
+  const apiKey = process.env.TYPESAFE_API_KEY;
+  if (!apiKey || !pairs.length) return new Map<number, boolean>();
+  const base = (process.env.TYPESAFE_API_BASE ?? "https://api.typesafe.ai/v1").replace(/\/$/, "");
+  const questions = Object.fromEntries(pairs.map(([left, right], index) => [`pair_${index}`, {
+    type: "noul",
+    instructions: {
+      pair: { first: { title: left.title, source: left.source, summary: left.summary }, second: { title: right.title, source: right.source, summary: right.summary } },
+      question: "Do these two records describe the same underlying news event or announcement, even if the wording and publisher differ? Ignore shared topic alone; require the same concrete event, release, study, company action, or claim.",
+    },
+    criteria: { true: "Same underlying news event or announcement; one should be deduplicated.", false: "Different events, merely related topics, or recurring coverage without the same concrete event." },
+  }]));
+  try {
+    const response = await fetch(`${base}/systemone`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: "jev-latest", state: { purpose: "semantic news deduplication" }, questions }),
+      signal: AbortSignal.timeout(Number(process.env.TYPESAFE_DEDUPE_TIMEOUT_MS ?? process.env.TYPESAFE_TIMEOUT_MS ?? 20000)),
+    });
+    if (!response.ok) return new Map<number, boolean>();
+    const payload = await response.json() as { answers?: Record<string, { noul?: number }> };
+    return new Map(pairs.map((_, index) => [index, Number(payload.answers?.[`pair_${index}`]?.noul ?? 0) >= 0.78]));
+  } catch {
+    return new Map<number, boolean>();
+  }
+}
+
+async function deduplicateStories(items: TrendRadarItem[]): Promise<JevDedupeResult> {
+  const groups: TrendRadarItem[][] = [];
+  const byUrl = new Map<string, TrendRadarItem[]>();
+  const ungrouped: TrendRadarItem[] = [];
+  for (const item of items) {
+    const key = normalizeUrl(item.url);
+    if (key) byUrl.set(key, [...(byUrl.get(key) ?? []), item]);
+    else ungrouped.push(item);
+  }
+  for (const group of byUrl.values()) groups.push(group);
+  const representatives = [...groups.map((group) => canonicalStory(group)), ...ungrouped];
+  const candidatePairs: Array<[TrendRadarItem, TrendRadarItem]> = [];
+  const deterministicPairs: Array<[TrendRadarItem, TrendRadarItem]> = [];
+  for (let leftIndex = 0; leftIndex < representatives.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < representatives.length; rightIndex += 1) {
+      const left = representatives[leftIndex];
+      const right = representatives[rightIndex];
+      const similarity = tokenSimilarity(left, right);
+      if (similarity >= 0.78 || (similarity >= 0.62 && left.sourceId === right.sourceId)) deterministicPairs.push([left, right]);
+      else if (similarity >= 0.48) candidatePairs.push([left, right]);
+    }
+  }
+  const jevResults = new Map<number, boolean>();
+  for (let index = 0; index < candidatePairs.length; index += 12) {
+    const batch = await askJevForDuplicates(candidatePairs.slice(index, index + 12));
+    batch.forEach((value, batchIndex) => jevResults.set(index + batchIndex, value));
+  }
+  const parent = new Map<string, string>();
+  const find = (id: string): string => {
+    const root = parent.get(id);
+    if (!root || root === id) return root ?? id;
+    const resolved = find(root);
+    parent.set(id, resolved);
+    return resolved;
+  };
+  const union = (a: string, b: string) => { const left = find(a); const right = find(b); if (left !== right) parent.set(right, left); };
+  representatives.forEach((item) => parent.set(item.id, item.id));
+  groups.forEach((group) => group.slice(1).forEach((item) => union(group[0].id, item.id)));
+  deterministicPairs.forEach(([left, right]) => union(left.id, right.id));
+  candidatePairs.forEach(([left, right], index) => { if (jevResults.get(index) === true || (!process.env.TYPESAFE_API_KEY && fallbackDuplicate(left, right))) union(left.id, right.id); });
+  const grouped = new Map<string, TrendRadarItem[]>();
+  items.forEach((item) => { const root = find(item.id); grouped.set(root, [...(grouped.get(root) ?? []), item]); });
+  const duplicateGroups = [...grouped.values()].filter((group) => group.length > 1).map((group) => group.map((item) => item.id));
+  const uniqueItems = [...grouped.values()].map((group) => canonicalStory(group));
+  const duplicateItemIds = duplicateGroups.flatMap((group) => group.slice(1));
+  return { uniqueItems, uniqueItemIds: uniqueItems.map((item) => item.id), duplicateItemIds, duplicateGroups, duplicateCount: duplicateItemIds.length, model: process.env.TYPESAFE_API_KEY ? "jev-latest" : "local-semantic-fallback" };
 }
 
 function readCache(key: string) {
@@ -128,14 +262,15 @@ async function scoreWithJev(item: TrendRadarItem): Promise<JevTriageScore> {
 export async function rankWithJev(items: TrendRadarItem[], limit = 32) {
   const key = feedKey(items);
   const cached = readCache(key);
-  if (cached) return { scores: cached.scores, cached: true, model: cached.scores[0]?.model ?? "jev-latest" };
-  const candidates = [...items].sort((a, b) => fallbackScore(b).composite - fallbackScore(a).composite).slice(0, limit);
+  if (cached) return { scores: cached.scores, dedupe: cached.dedupe ?? { uniqueItems: items, uniqueItemIds: items.map((item) => item.id), duplicateItemIds: [], duplicateGroups: [], duplicateCount: 0, model: "legacy-cache" }, cached: true, model: cached.scores[0]?.model ?? "jev-latest" };
+  const dedupe = await deduplicateStories(items);
+  const candidates = [...dedupe.uniqueItems].sort((a, b) => fallbackScore(b).composite - fallbackScore(a).composite).slice(0, limit);
   const scores: JevTriageScore[] = [];
   for (let index = 0; index < candidates.length; index += 6) {
     const batch = await Promise.all(candidates.slice(index, index + 6).map(scoreWithJev));
     scores.push(...batch);
   }
   scores.sort((a, b) => b.composite - a.composite);
-  writeCache({ key, generatedAt: new Date().toISOString(), scores });
-  return { scores, cached: false, model: scores[0]?.model ?? "local-triage-fallback" };
+  writeCache({ key, generatedAt: new Date().toISOString(), scores, dedupe });
+  return { scores, dedupe, cached: false, model: scores[0]?.model ?? "local-triage-fallback" };
 }

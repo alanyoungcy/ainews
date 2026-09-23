@@ -23,6 +23,7 @@ export async function POST(request: Request) {
       visualStyle: body.visualStyle ?? "Editorial data grid",
       prompt: body.prompt ?? "",
       seed: body.seed ?? "auto",
+      referenceImage: body.referenceImage ?? null,
       includeText: body.includeText !== false,
       textPlan: body.textPlan ?? null,
     };

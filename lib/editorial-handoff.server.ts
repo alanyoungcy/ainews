@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export type EditorialHandoffStage = "stage02" | "stage03";
+export type EditorialHandoffStage = "stage01" | "stage02" | "stage03";
 
 type EditorialHandoffStore = Partial<Record<EditorialHandoffStage, unknown>>;
 
