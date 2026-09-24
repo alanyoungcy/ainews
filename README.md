@@ -71,35 +71,35 @@ Before dispatch, the operator completes the final human checks, including source
 
 The application is a Next.js 15 App Router project. React pages provide the workflow shell, while server routes coordinate ingestion, scoring, AI calls, image generation, persistence, and exports. Local JSON files are used as a lightweight workspace store; this keeps the demo easy to run without a database and makes the handoff state inspectable during development.
 
-~~~mermaid
+```mermaid
 flowchart LR
-  User[Consultant] --> UI[Next.js App Router UI]
+  User["Consultant"] --> UI["Next.js App Router UI"]
 
-  UI --> S1[Screen 01\nIngestion and Triage]
-  UI --> S2[Screen 02\nEditorial Review]
-  UI --> S3[Screen 03\nInfographic Studio]
-  UI --> S4[Screen 04\nPreview and Dispatch]
+  UI --> S1["Screen 01<br/>Ingestion and triage"]
+  UI --> S2["Screen 02<br/>Editorial review"]
+  UI --> S3["Screen 03<br/>Infographic studio"]
+  UI --> S4["Screen 04<br/>Preview and dispatch"]
 
-  S1 --> SyncAPI[/api/trendradar]
-  SyncAPI --> RSS[Enabled English RSS sources]
-  SyncAPI --> Snapshot[data/trendradar/latest.json]
+  S1 --> SyncAPI["/api/trendradar"]
+  SyncAPI --> RSS["Enabled English RSS sources"]
+  SyncAPI --> Snapshot["data/trendradar/latest.json"]
 
-  S1 --> RankAPI[/api/triage-rank]
-  RankAPI --> Jev[Jev / TypeSafe API]
-  RankAPI --> JevCache[data/trendradar/jev-triage.json]
+  S1 --> RankAPI["/api/triage-rank"]
+  RankAPI --> Jev["Jev / TypeSafe API"]
+  RankAPI --> JevCache["data/trendradar/jev-triage.json"]
 
-  S1 --> BriefAPI[/api/weekly-intelligence]
-  BriefAPI --> AI[OpenAI-compatible AI provider]
-  BriefAPI --> BriefCache[data/trendradar/weekly-brief.json]
+  S1 --> BriefAPI["/api/weekly-intelligence"]
+  BriefAPI --> AI["OpenAI-compatible AI provider"]
+  BriefAPI --> BriefCache["data/trendradar/weekly-brief.json"]
 
-  S2 --> Handoff[/api/editorial-handoff]
-  S3 --> Art[/api/generate-art]
-  Art --> ImageModel[Image generation provider]
-  Art --> ArtCache[data/trendradar/infographic-memory.json]
+  S2 --> Handoff["/api/editorial-handoff"]
+  S3 --> Art["/api/generate-art"]
+  Art --> ImageModel["Image generation provider"]
+  Art --> ArtCache["data/trendradar/infographic-memory.json"]
 
-  S4 --> Status[/api/edition-status]
-  Status --> Sent[data/edition-status.json]
-~~~
+  S4 --> Status["/api/edition-status"]
+  Status --> Sent["data/edition-status.json"]
+```
 
 ### Main components
 
@@ -136,29 +136,29 @@ flowchart LR
 
 ## Editorial data flow
 
-~~~mermaid
+```mermaid
 flowchart TD
-  A[TrendRadar snapshot and RSS feeds] --> B[Merge enabled feed results]
-  B --> C[English-language filter]
-  C --> D[14-day rolling retention]
-  D --> E[Jev semantic deduplication]
-  E --> F[Jev weighted scoring]
-  F --> G[Screen 01 story selection]
-  G --> H[AI weekly synthesis]
-  H --> I[Stage 01 handoff]
-  I --> J[Screen 02 edit and approval]
-  J --> K[Stage 02 handoff]
-  K --> L[Screen 03 visual brief and image generation]
-  L --> M[Stage 03 handoff]
-  M --> N[Screen 04 preview, export, and dispatch]
-  N --> O[Dispatch history and sent-story flags]
-~~~
+  A["TrendRadar snapshot and RSS feeds"] --> B["Merge enabled feed results"]
+  B --> C["English-language filter"]
+  C --> D["14-day rolling retention"]
+  D --> E["Jev semantic deduplication"]
+  E --> F["Jev weighted scoring"]
+  F --> G["Screen 01 story selection"]
+  G --> H["AI weekly synthesis"]
+  H --> I["Stage 01 handoff"]
+  I --> J["Screen 02 edit and approval"]
+  J --> K["Stage 02 handoff"]
+  K --> L["Screen 03 visual brief and image generation"]
+  L --> M["Stage 03 handoff"]
+  M --> N["Screen 04 preview, export, and dispatch"]
+  N --> O["Dispatch history and sent-story flags"]
+```
 
 The handoff is deliberately cumulative: Stage 02 includes the selected source stories plus editorial fields, Stage 03 adds visual choices and artwork, and Stage 04 reads the complete bundle. If a screen shows only an image, the Stage 03 handoff is incomplete and should be regenerated from the approved Stage 02 story set.
 
 ## HITL state flow
 
-~~~mermaid
+```mermaid
 stateDiagram-v2
   [*] --> Ingestion
   Ingestion --> Synthesis: Select stories and run AI
@@ -168,7 +168,7 @@ stateDiagram-v2
   VisualConfirmed --> Dispatch: Advance to Stage 04
   Dispatch --> Sent: Complete checks and dispatch
   Sent --> [*]
-~~~
+```
 
 ## TrendRadar and “TechRadar” integration
 
@@ -229,22 +229,22 @@ Requirements:
 
 Install and run locally:
 
-~~~bash
+```bash
 git clone https://github.com/alanyoungcy/ainews.git
 cd ainews
 npm install
 cp .env.example .env.local
 npm run dev
-~~~
+```
 
 Open http://localhost:3000.
 
 For a production-style local run:
 
-~~~bash
+```bash
 npm run build
 npm start
-~~~
+```
 
 The application can run without external AI or Jev credentials because deterministic/source-grounded fallbacks are included. Full functionality requires the provider configuration described below.
 
@@ -343,10 +343,10 @@ Run npm install, then npm run lint and npm run build. If the error references a 
 
 The project scripts are:
 
-~~~bash
+```bash
 npm run lint
 npm run build
-~~~
+```
 
 Run both before committing changes. The lint script performs a TypeScript no-emit check using tsconfig.lint.json.
 
